@@ -1,4 +1,4 @@
-from card_game import Deck, Card, Suit, Rank, Player, Trick
+from card_game import Deck, Card, Suit, Rank, Rank13, Rank10, Player, Trick
 from utils import Crypto
 import time
 
@@ -14,13 +14,15 @@ auto = False
 
 sueca_totalTricks = 10
 sueca_score_1 = 61
-seuca_score_2 = 91
+sueca_score_2 = 91
 sueca_score_4 = 120
 
 hearts_totalTricks = 13
 hearts_maxScore = 10
 QUEEN = 12
 UNDEFINED = -1
+CLUBS = 0
+DIAMONDS = 1
 SPADES = 2
 HEARTS = 3
 cardsToPass = 3
@@ -54,16 +56,33 @@ class Hearts:
 		'''
 
 		# Generate a full deck of cards and shuffle it
-		#self.newRound()
+		self.newRound()
+
+	def checkGotAll(self, got_em_all):
+		for player in self.players:
+			if got_em_all[0]:
+				if player.name != got_em_all[1]:
+					player.score = 26
+				else:
+					player.score = 0
 
 	def handleScoring(self):
 		p, highestScore = None, 0
+		got_em_all = (False, None)
+		for player in self.players:
+			if player.score == 26:
+				got_em_all = (True, player.name)
+
+		self.checkGotAll(got_em_all)
 		print("\nScores:\n")
 		for player in self.players:
-			print("{}: {}".format(player.name, str(player.score)))
-			if player.score > highestScore:
+			player.total_score += player.score
+
+			print("{}: {}".format(player.name, str(player.total_score)))
+			player.score = 0
+			if player.total_score > highestScore:
 				p = player
-				highestScore = player.score
+				highestScore = player.total_score
 			self.losingPlayer = p
 
 		
@@ -194,6 +213,9 @@ class Hearts:
 		if self.trickNum == 0:
 			startPlayer = self.players[start]
 			addCard = startPlayer.play(option="play", c='2c')
+			print(type(addCard))
+			print("why ?????")
+
 			startPlayer.removeCard(addCard)
 
 			self.currentTrick.addCard(addCard, start)
@@ -298,9 +320,9 @@ class Hearts:
 		minScore = 200 # impossibly high
 		winner = None
 		for p in self.players:
-			if p.score < minScore:
+			if p.total_score < minScore:
 				winner = p
-				minScore = p.score
+				minScore = p.total_score
 		return winner
 
 	def sleeper(self):
@@ -312,7 +334,7 @@ def main():
 	hearts = Hearts([Player("ID1","A"), Player("ID2","B"), Player("ID3","C"), Player("ID4","D")])
 
 	# play until someone loses
-	while hearts.losingPlayer is None or hearts.losingPlayer.score < hearts_maxScore:
+	while hearts.losingPlayer is None or hearts.losingPlayer.total_score < hearts_maxScore:
 		while hearts.trickNum < hearts_totalTricks:
 			print("Round {}".format(hearts.roundNum))
 			if hearts.trickNum == 0:
@@ -330,7 +352,7 @@ def main():
 		hearts.handleScoring()
 
 		# new round if no one has lost
-		if hearts.losingPlayer.score < hearts_maxScore:
+		if hearts.losingPlayer.total_score < hearts_maxScore:
 			print("New round")
 			hearts.newRound()
 
