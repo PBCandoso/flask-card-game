@@ -50,7 +50,7 @@ class Deck:
 	def size(self):
 		return len(self.__deck)
 
-	def addCards(cards):
+	def addCards(self,cards):
 		self.__deck += cards
 
 
@@ -359,7 +359,7 @@ class Hand:
 		return len(self.value[suit]) == self.size()
 
 	def hasOnlyHearts(self):
-		self.hasOnlySuit(HEARTS)
+		return self.hasOnlySuit(HEARTS)
 
 
 	def __str__(self):
@@ -465,6 +465,7 @@ class Player:
 		self.name = name
 		self.crypto = Crypto()
 		self.score = 0
+		self.total_score = 0
 		self.tricksWon = []
 		self.autoplay = auto
 		n = 13 if game == "Hearts" else 10
@@ -483,23 +484,16 @@ class Player:
 
 	def play(self, suit=None, option='play', c=None, auto=False):
 		
-		if c != None:
-			pass
+		if c is not None:
+			card = c
 
 		elif self.autoplay or auto:
-			'''
-			if suit != Suit(-1):
-				return self.hand.getRandomCard()
-			
-			return self.getRandomCard(suit)
-			'''
 			if suit is None:
 				return self.hand.getRandomCard()
 			
 			return self.hand.getRandomCard(suit)
-		
-
-		card = self.getInput(option) if c is None else c
+		else:
+			card = self.getInput(option)
 
 		return self.hand.playCard(card) 
 
