@@ -1,4 +1,5 @@
 from card_game import Deck, Card, Suit, Rank, Player, Trick
+from utils import Crypto
 import time
 
 
@@ -36,6 +37,7 @@ class Hearts:
 		self.heartsBroken = False
 		self.losingPlayer = None
 		self.passingCards = [[], [], [], []]
+		self.crypto = Crypto("table")
 
 
 		# Make four players
@@ -98,7 +100,8 @@ class Hearts:
 		self.trickWinner = self.currentTrick.winner
 		p = self.players[self.trickWinner]
 		p.trickWon(self.currentTrick)
-		self.printCurrentTrick()
+		if self.trickNum < hearts_totalTricks-1:
+			print(self.currentTrick.suit)
 		print(p.name + " won the trick.")
 		# print('Making new trick')
 		self.currentTrick = Trick()
@@ -123,6 +126,47 @@ class Hearts:
 				self.players[i].addCard(card)
 		self.passingCards = [[], [], [], []]
 
+	def playersMakeCommitments(self):
+		for p in self.players:
+			p.perform_bit_commitment()
+
+	def saveBitCommitments(self):
+		for p in self.players:
+			self.crypto.players_bit_commitments[p.name] = p.crypto.bit_commitment
+			print(p.crypto.bit_commitment)
+
+	def distributeBitCommitments(self):
+		players = [0, 1, 2, 3]
+		for i in players:
+			for j in players:
+				if j != i:
+					self.players[i].crypto.other_bit_commitments[self.players[j].name] = self.players[j].crypto.bit_commitment
+
+	def saveCommitmentsReveal(self):
+		for p in self.players:
+			self.crypto.players_commitments_reveal[p.name] = p.crypto.commitment_reveal				
+
+	def distributeCommitmentsReveal(self):
+		players = [0, 1, 2, 3]
+		for i in players:
+			for j in players:
+				if j != i:
+					self.players[i].crypto.other_commitments_reveal[self.players[j].name] = self.players[j].crypto.commitment_reveal
+
+	def verify_bit_commitments(self):
+		for p in self.players:
+			print("Commitment {1}match! -> {0}".format(p.name, "" if self.crypto.verify_commitment_reveal(self.crypto.players_bit_commitments[p.name], self.crypto.players_commitments_reveal[p.name]) else "mis"))
+
+	def commitment_modules_start(self):
+		self.playersMakeCommitments()
+		self.saveBitCommitments()
+		self.distributeBitCommitments()
+
+	def commitment_modules_end(self):
+		print() #spacing
+		self.saveCommitmentsReveal()
+		self.verify_bit_commitments()
+
 	def printPassingCards(self):
 		out = "[ "
 		for passed in self.passingCards:
@@ -135,7 +179,7 @@ class Hearts:
 
 	def playersPassCards(self):
 		
-		self.printPlayers()
+		self.printPlayers(passed=False)
 		if (self.trickNum % 4) != 3: # don't pass every fourth hand
 			for i in range(0, len(self.players)):
 				print() # spacing
@@ -143,7 +187,7 @@ class Hearts:
 				self.passCards(i % len(self.players))
 
 			self.distributePassedCards()
-			self.printPlayers()
+			self.printPlayers(passed=True)
 
 	def playTrick(self, start):
 		shift = 0
@@ -234,7 +278,7 @@ class Hearts:
 		print("{}'s hand: {}".format(p.name, str(p.hand)))
 
 	# print all players' hands
-	def printPlayers(self):
+	def printPlayers(self, passed=False):
 		for p in self.players:
 			print("{}: {}".format(p.name, str(p.hand)))
 
@@ -274,9 +318,13 @@ def main():
 			if hearts.trickNum == 0:
 				if not auto:
 					hearts.playersPassCards()
+				hearts.commitment_modules_start()
 				hearts.getFirstTrickStarter()
 			print('\nPlaying trick number {}'.format(hearts.trickNum + 1))
 			hearts.playTrick(hearts.trickWinner)
+			
+		# check if everyone played with their cards
+		hearts.commitment_modules_end()
 
 		# tally scores
 		hearts.handleScoring()
