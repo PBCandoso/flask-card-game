@@ -28,6 +28,10 @@ def createRoom():
     rooms[randomId] = Hearts()
     return json.dumps({'success':True}), 201, {'ContentType':'application/json'}
 
+@app.route('/highscores')
+def highscores():
+	return render_template("highscore_proto.html");
+
 @socketio.on('connect')
 def connect():
     print("Client connected")
