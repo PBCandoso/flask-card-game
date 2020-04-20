@@ -1,4 +1,5 @@
 import random
+from utils import Crypto
 
 class Deck:
 	def __init__(self, game="Hearts"):
@@ -460,14 +461,15 @@ class Trick:
 
 class Player:
 	def __init__(self, id, name, game="Hearts", auto=False):
-			self.id = id
-			self.name = name
-			self.score = 0
-			self.tricksWon = []
-			self.autoplay = auto
-			n = 13 if game == "Hearts" else 10
+		self.id = id
+		self.name = name
+		self.crypto = Crypto()
+		self.score = 0
+		self.tricksWon = []
+		self.autoplay = auto
+		n = 13 if game == "Hearts" else 10
 
-			self.hand = Hand(n)
+		self.hand = Hand(n)
 
 	def addCard(self, card):
 		self.hand.addCard(card)
@@ -517,3 +519,12 @@ class Player:
 
 	def hasOnlyHearts(self):
 		return self.hand.hasOnlyHearts()
+
+	def generate_asymmetric_keys(self):
+		return self.crypto.key_pair_gen(4096)
+
+	def perform_bit_commitment(self):
+		return self.crypto.calculate_bit_commitment(self.hand)
+
+	def verify_bit_commitment(self, bit_commitment, commitment_reveal):
+		return self.crypto.verify_bit_commitment(bit_commitment, commitment_reveal)
