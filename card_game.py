@@ -90,14 +90,12 @@ class Card:
 	def __str__(self):
 		return self.rank.__str__() + self.suit.__str__()
 
-'''
-Suit identification (iden, trump)
-0: clubs
-1: diamonds
-2: spades
-3: hearts
-Trump is a boolean variable
-'''
+#Suit identification (iden, trump); Trump is a boolean variable
+UNDEFINED = -1
+CLUBS = 0
+DIAMONDS = 1
+SPADES = 2
+HEARTS = 3
 
 class Suit:
 	def __init__(self, iden, trump=False):
@@ -106,7 +104,7 @@ class Suit:
 		self.__string = ''
 		suits = ["c", "d", "s", "h"]
 
-		if iden == -1:
+		if iden == UNDEFINED:
 			self.__string = "Undefined"
 		elif iden <= 3:
 			self.__string = suits[iden]
@@ -218,15 +216,15 @@ class Hand:
 		return len(self.clubs) + len(self.diamonds) + len(self.spades) + len(self.hearts)
 
 	def addCard(self, card):
-		if card.suit == Suit(0):
+		if card.suit == Suit(CLUBS):
 			if card.rank.value == 2:
 				self.contains2ofclubs = True
 			self.clubs.append(card)
-		elif card.suit == Suit(1):
+		elif card.suit == Suit(DIAMONDS):
 			self.diamonds.append(card)
-		elif card.suit == Suit(2):
+		elif card.suit == Suit(SPADES):
 			self.spades.append(card)
-		elif card.suit == Suit(3):
+		elif card.suit == Suit(HEARTS):
 			self.hearts.append(card)
 		else:
 			raise Exception('Invalid Card: Couldn\'t add card to Hand')
@@ -239,20 +237,23 @@ class Hand:
 	def updateHand(self):
 		self.value = [self.clubs, self.diamonds, self.spades, self.hearts]
 
-	def getRandomCard(self, suit=""):
-		suits_in_hand = [i for i in range(0,4) if len(self.value[i]) > 0]		# suits with len > 0
+	def getRandomCard(self, suit=UNDEFINED):
+		SUITS = [CLUBS, DIAMONDS, SPADES, HEARTS]
+
+		if trick_suit in SUITS:
+			trick_suit = SUITS.index(trick_suit)
+		else:
+			trick_suit = UNDEFINED
+
+		suits_in_hand = [i for i in [CLUBS, DIAMONDS, SPADES, HEARTS] if len(self.value[i]) > 0]	# suits with len > 0
 		possib = suits_in_hand
 
-		#print(suits_in_hand)
-		#if trick_suit in suits_in_hand:
-		#	possib = trick_suit
+		if trick_suit in suits_in_hand:
+			possib = [trick_suit]
 
-		idx = suit if (type(suit)==int and suit not in range(0,4)) else random.choice(possib)
+		idx = random.choice(possib)
 		suit = self.value[idx]
 
-		while len(suit) == 0:
-			idx = random.randint(0,3)
-			suit = self.value[idx]
 		index = random.randint(0, len(suit)-1)
 
 		return suit[index]
@@ -357,7 +358,7 @@ class Hand:
 		return len(self.value[suit]) == self.size()
 
 	def hasOnlyHearts(self):
-		self.hasOnlySuit(3)
+		self.hasOnlySuit(HEARTS)
 
 
 	def __str__(self):
@@ -373,28 +374,28 @@ class Trick:
 		self.game = game 			# Hearts or Sueca
 		self.n = n 					# N players
 		self.trick = [0] * self.n 	# Initializes a list of N zeros
-		self.suit = Suit(-1)
+		self.suit = Suit(UNDEFINED)
 		self.cardsInTrick = 0
 		self.points = 0
 		self.highest = 0
-		self.winner = -1
+		self.winner = UNDEFINED
 
 		if self.game == "Hearts":
-			self.highest = -1 # rank of the high trump suit card in trick
+			self.highest = UNDEFINED # rank of the high trump suit card in trick
 		elif self.game == "Sueca":
-			self.highest = Card(Rank10(-1), self.suit) # rank and suit of the high trump suit card in trick
+			self.highest = Card(Rank10(UNDEFINED), self.suit) # rank and suit of the high trump suit card in trick
 
 	def reset(self):
 		self.trick = [0] * self.n
-		self.suit = Suit(-1)
+		self.suit = Suit(UNDEFINED)
 		self.cardsInTrick = 0
 		self.points = 0
-		self.winner = -1
+		self.winner = UNDEFINED
 
 		if self.game == "Hearts":
-			self.highest = -1 # rank  of the higher suit card in trick
+			self.highest = UNDEFINED # rank  of the higher suit card in trick
 		elif self.game == "Sueca":
-			self.highest = Card(Rank10(-1), self.suit) # rank and suit of the most valuable card in trick
+			self.highest = Card(Rank10(UNDEFINED), self.suit) # rank and suit of the most valuable card in trick
 
 	# def cardsInTrick(self):
 	# 	count = 0
@@ -415,15 +416,11 @@ class Trick:
 		self.cardsInTrick += 1
 
 		if self.game == "Hearts":
-			hearts = 3
-			spades = 2
-			queen = 12
+			QUEEN = 12
 
-			if card.suit == Suit(hearts):
-				# Each card of Hearts - 1 point
+			if card.suit == Suit(HEARTS):
 				self.points += 1
-			elif card == Card(Rank13(queen), Suit(spades)):
-				# Queen of Spades - 13 points
+			elif card == Card(Rank13(QUEEN), Suit(SPADES)):
 				self.points += 13
 
 			if card.suit == self.suit:
@@ -433,20 +430,24 @@ class Trick:
 					print("Highest: {}".format(self.highest))
 
 		elif self.game == "Sueca":
+			ACE = 11
+			SEVEN = 10
+			KING = 9
+			JACK = 8
+			QUEEN = 7
 
-			if card.rank == Rank(11):
-				# Each Ace - 11 points
+			if card.rank == Rank(ACE):
 				self.points += 11
-			elif card.rank == Rank(10):
+			elif card.rank == Rank(SEVEN):
 				# Each Seven - 10 points
 				self.points += 10
-			elif card.rank == Rank(9):
+			elif card.rank == Rank(KING):
 				# Each King - 4 points
 				self.points += 4
-			elif card.rank == Rank(8):
+			elif card.rank == Rank(JACK):
 				# Each Jack - 3 points
 				self.points += 3
-			elif card.rank == Rank(7):
+			elif card.rank == Rank(QUEEN):
 				# Each Queen - 2 points
 				self.points += 2
 
@@ -478,18 +479,22 @@ class Player:
 			card = input(msg)
 		return card
 
-	def play(self, option='play', c=None, auto=False):
+	def play(self, suit=None, option='play', c=None, auto=False):
 		
-		#suit = self.trick.suit
+		if c != None:
+			pass
 
-		if self.autoplay:
+		elif self.autoplay or auto:
 			'''
 			if suit != Suit(-1):
 				return self.hand.getRandomCard()
 			
 			return self.getRandomCard(suit)
 			'''
-			return self.hand.getRandomCard()
+			if suit is None:
+				return self.hand.getRandomCard()
+			
+			return self.hand.getRandomCard(suit)
 		
 
 		card = self.getInput(option) if c is None else c
