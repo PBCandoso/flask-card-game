@@ -213,8 +213,6 @@ class Hearts:
 		if self.trickNum == 0:
 			startPlayer = self.players[start]
 			addCard = startPlayer.play(option="play", c='2c')
-			print(type(addCard))
-			print("why ?????")
 
 			startPlayer.removeCard(addCard)
 
