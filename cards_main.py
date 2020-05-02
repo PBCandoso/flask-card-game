@@ -56,7 +56,7 @@ class Hearts:
 		'''
 
 		# Generate a full deck of cards and shuffle it
-		self.newRound()
+		#self.newRound()
 
 	def checkGotAll(self, got_em_all):
 		for player in self.players:
@@ -330,31 +330,6 @@ class Hearts:
 
 def main():
 	hearts = Hearts([Player("ID1","A"), Player("ID2","B"), Player("ID3","C"), Player("ID4","D")])
-
-	# play until someone loses
-	while hearts.losingPlayer is None or hearts.losingPlayer.total_score < hearts_maxScore:
-		while hearts.trickNum < hearts_totalTricks:
-			print("Round {}".format(hearts.roundNum))
-			if hearts.trickNum == 0:
-				if not auto:
-					hearts.playersPassCards()
-				hearts.commitment_modules_start()
-				hearts.getFirstTrickStarter()
-			print('\nPlaying trick number {}'.format(hearts.trickNum + 1))
-			hearts.playTrick(hearts.trickWinner)
-			
-		# check if everyone played with their cards
-		hearts.commitment_modules_end()
-
-		# tally scores
-		hearts.handleScoring()
-
-		# new round if no one has lost
-		if hearts.losingPlayer.total_score < hearts_maxScore:
-			print("New round")
-			hearts.newRound()
-
-	print("\n{} wins!".format(hearts.getWinner().name))
 
 
 
