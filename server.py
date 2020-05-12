@@ -4,37 +4,30 @@ from flask_cors import CORS, cross_origin
 from flask_jwt import JWT, jwt_required, current_identity
 from cards_main import Hearts
 from card_game import Player
+from utils import Crypto
+from user import User
 import json
 from random import randint,choice
 import string
 
 app = Flask(__name__)
 app.config['JWT_SECRET_KEY'] = 'super-secret'
-cors = CORS(app,resources={r"/auth": {"origins": "*"}})
+cors = CORS(app,resources={r"/auth": {"origins": "*"},r"/token":{"origins": "*"}})
 socketio = SocketIO(app,cors_allowed_origins="*")
 
-rooms={"1":Hearts(),"2": None}
+crypto = Crypto(None,None,None)
+
+rooms={"1":Hearts(),"2": Hearts()}
 
 leaderboard={"1111111":1, "12345678":2,"87654321":3,"23145546":4}
 
-class User:
-    def __init__(self,username,password):
-        self.id = username
-
-def authenticate(user,password):
-    return User("user","password")
-
-def identity(payload):
-    return User("user","password")
-
-jwt = JWT(app,authenticate,identity)
+users={"252811518": User("252811518",2,None)}
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
 @app.route('/rooms', methods=['GET'])
-@jwt_required
 def room():
     return jsonify(list(rooms.keys()))
 
@@ -46,6 +39,22 @@ def createRoom():
     rooms[randomId] = Hearts()
     return json.dumps({'success':True}), 201, {'ContentType':'application/json'}
 
+@app.route('/token', methods=['POST'])
+def decode_token():
+	token_str = request.data.decode("utf-8")
+	try:
+		token = crypto.decode_cmd_token(token_str)
+		jwt = json.loads(token.decode('utf-8'))
+		if jwt['nif'] in users:
+			user = users.get(jwt['nif'])
+			user.token = crypto.generate_token(jwt)
+			return json.dumps(user.__dict__),200
+		else:
+			user = User(jwt['nif'],0,crypto.generate_token(jwt))
+			return json.dumps(user.__dict__),500
+	except:
+		return 'Could not generate token',500
+ 
 @socketio.on('connect')
 def connect():
     print("Client connected")
