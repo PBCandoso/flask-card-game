@@ -86,6 +86,23 @@ class Crypto():
 		signed = token.make_signed_token(key)
 		return token.serialize()
 
+	def validate_token(self,token):
+		key = jwk.JWK(**JWK_KEY)
+		jwstoken = jws.JWS()
+		jwstoken.deserialize(token)
+		try:
+			jwstoken.verify(key)
+			return True
+		except:
+			return False
+
+	def get_payload(self,token):
+		key = jwk.JWK(**JWK_KEY)
+		jwstoken = jws.JWS()
+		jwstoken.deserialize(token)
+		jwstoken.verify(key)
+		return jwstoken.payload
+
 
 	# Generates shared key (server)
 	def dh_server(self, p, g, bytes_public_key):

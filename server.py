@@ -9,10 +9,11 @@ from user import User
 import json
 from random import randint,choice
 import string
+from functools import wraps
 
 app = Flask(__name__)
 app.config['JWT_SECRET_KEY'] = 'super-secret'
-cors = CORS(app,resources={r"/auth": {"origins": "*"},r"/token":{"origins": "*"}})
+cors = CORS(app,resources={r"/auth": {"origins": "*"},r"/token":{"origins": "*"},r"/user":{"origins": "*"}})
 socketio = SocketIO(app,cors_allowed_origins="*")
 
 crypto = Crypto(None,None,None)
@@ -21,7 +22,21 @@ rooms={"1":Hearts(),"2": Hearts()}
 
 leaderboard={"1111111":1, "12345678":2,"87654321":3,"23145546":4}
 
-users={"252811518": User("252811518",2,None)}
+users={"252811518": User("252811518",2,None), "123456": User("123456",1,None)}
+
+
+def token_required(f):
+	@wraps(f)
+	def decorated(*args,**kwargs):
+		try:
+			token = request.headers['Authorization']
+		except:
+			return jsonify({'message': 'Token is missing'}),403
+
+		if not crypto.validate_token(token):
+				return jsonify({'message': 'Invalid token'}),403
+		return f(*args,**kwargs)
+	return decorated
 
 @app.route('/')
 def index():
@@ -55,6 +70,23 @@ def decode_token():
 	except:
 		return 'Could not generate token',500
  
+
+@app.route('/testtoken', methods=['GET'])
+def ttoken():
+	token = crypto.generate_token({'nif':'123456'})
+	return jsonify({'token': token}),200
+
+@app.route("/user", methods=['GET'])
+@token_required
+def getUser():
+	payload = crypto.get_payload(request.headers['Authorization'])
+	payload = json.loads(payload)
+	if payload['nif'] and payload['nif'] in users:
+		user = users.get(payload['nif'])
+		user.token = request.headers['Authorization']
+		return json.dumps(user.__dict__),200
+	return "No user found",500
+
 @socketio.on('connect')
 def connect():
     print("Client connected")
