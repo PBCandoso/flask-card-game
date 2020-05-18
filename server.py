@@ -3,6 +3,7 @@ from flask_socketio import SocketIO,send,emit,join_room,leave_room
 from flask_cors import CORS, cross_origin
 from flask_jwt import JWT, jwt_required, current_identity
 from cards_main import Hearts
+from table import Hearts_Table
 from card_game import Player
 from utils import Crypto
 from user import User
@@ -18,7 +19,7 @@ socketio = SocketIO(app,cors_allowed_origins="*")
 
 crypto = Crypto(None,None,None)
 
-rooms={"1":Hearts(),"2": Hearts()}
+rooms={"1":Hearts_Table(),"2": Hearts_Table()}
 
 leaderboard={"1111111":1, "12345678":2,"87654321":3,"23145546":4}
 
@@ -101,16 +102,13 @@ def joinRoom(message):
     if tj == None:
         emit('join-room',{'id':message, 'status':'missing'})
     elif len(tj.players) >= 4:
-        emit('join-room',{'id':message, 'status':'full'})
+        return
     else:
         # Join socket IO room to facilitate broadcasting messages
         join_room(message)
         # Join our server room
-        # TODO better random player name
-        pname = "Player "+str(randint(1,100))
-        rooms[message].players.append(Player(request.sid,pname))
-
-        emit('join-room',{'id':message, 'status':'success'})
+        rooms[message].players.append(request.sid)
+        emit('join-room',{'id':message, 'status': rooms[message].join()})
 
 @socketio.on('leave-room')
 def leaveRoom(message):
@@ -126,14 +124,12 @@ def leaveRoom(message):
 @socketio.on('hearts-message')
 def msg(message):
     # TODO Validate room
+    print(request.sid," ",message)
     room = message['room']
-    player = [pl for pl in rooms[room].players if pl.id == request.sid][0]
-    data = message['data']
-    #Simulate a game start after receiving a message
-    game = rooms[room] 
-
-    # Echo message
-    emit('hearts-message',{'player':player.name,'data':data},room = room)
+    game = rooms[room]
+    tosend = game.on_frame(message['data'])
+    print(tosend)
+    emit('hearts-message',tosend,broadcast=True)
 
 if __name__ == '__main__':
     socketio.run(app)
