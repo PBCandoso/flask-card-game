@@ -1,5 +1,6 @@
 from card_game import Deck, Card, Suit, Rank, Rank13, Trick
 from utils import Crypto
+from player import Game_Player
 import asyncio
 import json
 import base64
@@ -66,15 +67,8 @@ class Hearts_Table():
 		self.ack = 0
 		self.needs_to_do_something = self.players	#to be emptied and refilled
 		self.total_scores = {}
-		self.names = []
-		self.sid_maped_with_names = {}
+		self.sid_maped_with_players = {}
 		self.state = STATE_READY
-
-		for i in range(len(self.players)):
-			names = random.choices(NAMES_LIST, k=len(self.players))
-			for n in names:
-				NAMES_LIST.pop(NAMES_LIST.index(n))
-			self.names[i] = names
 
 		'''
 		Player physical locations:
@@ -89,14 +83,19 @@ class Hearts_Table():
 		#logger.info("State: {}".format(states[self.state]))
 		logger.info("Received: {}".format(received))
 
-	def join(self):
+	def join(self,sid):
 		print("Player in room: ",self.players)
 		if len(self.players) > 4:
-			return 'full'
+			return ['full']
 		else:
-			return 'success'
+			if sid in self.players:
+				return ['inroom']
+			self.players.append(sid)
+			randnames = random.choices(NAMES_LIST, k=4)
+			self.sid_maped_with_players[sid]= Game_Player(sid,randnames)
+			return ['success',randnames,len(self.players)-1]
 
-	def on_frame(self, frame):
+	def on_frame(self, sid, frame):
 		"""
 		Processes a frame (JSON Object)
 
@@ -115,12 +114,11 @@ class Hearts_Table():
 		mtype = message.get('type', None)
 		self.log_state(mtype)
 
-		sender_sid = 0
+		sender_id = sid
 
 		if mtype == 'OK':
 			logger.debug('OK')
 			self.ack += 1
-			print(self.ack)
 
 			'''
 			if everyone acknowldges (ACK=4); 
@@ -137,16 +135,15 @@ class Hearts_Table():
 					self.state = STATE_NEW_ROUND
 					self.new_round()
 					message = {'type': 'ROUND_UPDATE', 'round': self.round_num}
-					return message
-					#self._send(message)
+					return message,True
 
 				if self.state == STATE_NEW_ROUND:
 					# sent before: ROUND_UPDATE
-					
-					message = {'type': 'SHUFFLE_REQUEST', 'parameters':{'deck': self.deck.as_list()}}
-					return message
-					#sid = random.choices(self.players)
-					#self._send(message, sid)
+					#message = {'type': 'SHUFFLE_REQUEST', 'parameters':{'deck': self.deck.as_list()}}
+					sid = random.choices(self.players)
+					# random player shuffles the deck
+					newdeck,cypher = self.sid_maped_with_players[sid].process_shuffle_response(self.deck)
+					self.shuffle_response(sender_id,newdeck,cypher)
 
 				elif self.state == STATE_DECRYPTION:
 					# sent before: DISTRIBUTE_ENCRYPTION_KEYS
@@ -388,7 +385,7 @@ class Hearts_Table():
 			logger.debug('MISMATCH_ERROR')
 			#sender_sid = sid
 			possible_cheaters_names = message['parameters']['players']
-			possible_cheaters_sid = [sid for sid,names in self.sid_maped_with_names.items() 
+			possible_cheaters_sid = [sid for sid,names in self.sid_maped_with_players.items() 
 											for pcheater in possible_cheaters_names 
 												if pcheater in names
 									]
@@ -428,6 +425,24 @@ class Hearts_Table():
 
 			self.state = STATE_CLOSE
 			#self.transport.close()
+
+	def shuffle_response(self,sid,deck,key):
+		logger.debug('SHUFFLE_RESPONSE')
+		sender_sid = sid
+		self.needs_to_do_something.pop(sender_sid)
+
+		encryption_key = key
+		self.crypto.all_fernet_keys.append(encryption_key)
+		
+		if self.needs_to_do_something != []:
+			message = {'type':'SHUFFLE_REQUEST', 'parameters':{'deck': deck}}
+			sid = random.choices(self.needs_to_do_something)
+		else:
+			self.needs_to_do_something = self.players
+			message = {'type':'PICK_OR_PASS_REQUEST', 'parameters':{'deck': deck}}
+			sid = random.choices(self.players)
+
+		return
 
 	def get_winner(self):
 		min_score = 1000 # impossibly high

@@ -107,8 +107,14 @@ def joinRoom(message):
         # Join socket IO room to facilitate broadcasting messages
         join_room(message)
         # Join our server room
-        rooms[message].players.append(request.sid)
-        emit('join-room',{'id':message, 'status': rooms[message].join()})
+        join = rooms[message].join(request.sid)
+        if join[0] == 'success':
+            # status = status, names = player names , players = number fo players
+            emit('join-room',{'id':message, 'status': join[0], 'names': join[1], 'players': join[2]})
+            # broadcast player join
+            emit('join-room',{'id':message, 'status': 'opponent'},broadcast=True,include_self=False)
+        else:
+            emit('join-room',{'id':message, 'status': join[0]})
 
 @socketio.on('leave-room')
 def leaveRoom(message):
@@ -123,13 +129,11 @@ def leaveRoom(message):
 
 @socketio.on('hearts-message')
 def msg(message):
-    # TODO Validate room
     print(request.sid," ",message)
     room = message['room']
     game = rooms[room]
-    tosend = game.on_frame(message['data'])
-    print(tosend)
-    emit('hearts-message',tosend,broadcast=True)
+    (tosend,broadcast) = game.on_frame(request.sid,message['data'])
+    emit('hearts-message',tosend,broadcast=broadcast)
 
 if __name__ == '__main__':
     socketio.run(app)

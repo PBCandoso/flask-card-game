@@ -17,15 +17,14 @@ STATE_NEW_ROUND = 2
 STATE_GAME = 3
 STATE_CLOSE = 4
 
-class Game_Player(asyncio.Protocol):
-	def __init__(self):
-		self.name = input("Name: ")
-		self.player = Player(self.name, auto=True)
-
-		#self.sid = x		# session id from socketio
-
+class Game_Player():
+	def __init__(self,sid,names):
+		self.player = Player(names[0], auto=True)
+		self.opponent_names = names[1:]
+		self.sid = sid		# session id from socketio
 		self.round_number = 0
 		self.trick_number = 0
+		self.state = STATE_READY
 
 	def restart(self):
 		self.player.score = 0
@@ -35,21 +34,6 @@ class Game_Player(asyncio.Protocol):
 		#states = ['NEGOTIATION', 'DH', 'ROTATION','CONNECT', 'OPEN', 'DATA', 'CLOSE']
 		#logger.info("State: {}".format(states[self.state]))
 		logger.info("Received: {}".format(received))
-
-
-	def connection_made(self, transport) -> None:
-		"""
-		Called when the client connects.
-
-		:param transport: The transport stream to use for this client
-		:return: No return
-		"""
-		self.transport = transport
-
-		logger.info('Connected to Table')
-		message = {'type': 'READY'}
-		#self._send(message)
-		self.state = STATE_READY
 
 	def on_frame(self, frame: str) -> None:
 		"""
@@ -65,7 +49,6 @@ class Game_Player(asyncio.Protocol):
 			message = json.loads(frame)
 		except:
 			logger.exception("Could not decode the JSON message")
-			self.transport.close()
 			return
 
 		mtype = message.get('type', None)
@@ -147,8 +130,8 @@ class Game_Player(asyncio.Protocol):
 		elif mtype == 'DISTRIBUTE_BIT_COMMITMENTS':
 			logger.debug('DISTRIBUTE_BIT_COMMITMENTS')
 			bit_commitments = message['parameters']['all_bit_commitments']
-			for name,commit in bit_commitments:
-				self.save_bit_commitments(name, commit)
+			#for name,commit in bit_commitments:
+				#self.save_bit_commitments(name, commit)
 			self.process_bit_commitments()
 			return
 
@@ -191,8 +174,8 @@ class Game_Player(asyncio.Protocol):
 		elif mtype == 'DISTRIBUTE_COMMITMENT_REVEALS':
 			logger.debug('DISTRIBUTE_COMMITMENT_REVEALS')
 			commitment_reveals = message['parameters']['all_commitment_reveals']
-			for name, commit in commitment_reveals:
-				self.save_commitment_reveals(name, commit)
+			#for name, commit in commitment_reveals:
+				#self.save_commitment_reveals(name, commit)
 			self.process_commitment_reveals()
 			return
 
@@ -229,7 +212,6 @@ class Game_Player(asyncio.Protocol):
 			logger.warning("Invalid message type")
 
 		logger.debug('Closing')
-		self.transport.close()
 
 	def process_shuffle_response(self, deck):
 		new_deck, encryption_key = self.player.shuffle_deck(deck)
@@ -284,9 +266,9 @@ class Game_Player(asyncio.Protocol):
 
 	def process_commitment_reveals(self):
 		names = []
-		for name, commit_reveal in self.player.crypto.other_commitments_reveal:
-			if self.player.verify_commitment(commit_reveal):
-				names.append(name)
+		#for name, commit_reveal in self.player.crypto.other_commitments_reveal:
+			#if self.player.verify_commitment(commit_reveal):
+				#names.append(name)
 		logger.warning('MISMATCH_ERROR: {}'.format(names))
 		message = {'type': 'OK'} if len(names)==0 else {'type': 'MISMATCH_ERROR', 'parameters':{'players': names}}
 		#self._send(message)
