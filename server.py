@@ -17,7 +17,7 @@ app.config['JWT_SECRET_KEY'] = 'super-secret'
 cors = CORS(app,resources={r"/auth": {"origins": "*"},r"/token":{"origins": "*"},r"/user":{"origins": "*"}})
 socketio = SocketIO(app,cors_allowed_origins="*")
 
-crypto = Crypto(None,None,None)
+crypto = Crypto()
 
 rooms={"1":Hearts_Table(),"2": Hearts_Table()}
 

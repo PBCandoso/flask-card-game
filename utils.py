@@ -38,13 +38,22 @@ logger = logging.getLogger('root')
 
 class Crypto():
 
-	def __init__(self, symmetric_cipher="", cipher_mode="", digest_function=""):
+	def __init__(self, mode="player"):
 		self.rsa_public_key = None
 		self.rsa_private_key = None
 		self.all_fernet_keys = []
-		self.players_public_keys = {}
-		self.players_bit_commitments = {}
-		self.players_commitments_reveal = {}
+
+		if mode == "player":
+			self.table_public_key = None
+			self.bit_commitment = None
+			self.commitment_reveal = None
+			self.other_bit_commitments = {}
+			self.other_commitments_reveal = {}
+			self.fernet_key = None
+		elif mode == "table":
+			self.players_public_keys = {}
+			self.players_bit_commitments = {}
+			self.players_commitments_reveal = {}
 
 
 	# decodes cmd encryption

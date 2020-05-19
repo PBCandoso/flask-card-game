@@ -2,56 +2,99 @@ import random
 from utils import Crypto
 
 class Deck:
-	def __init__(self, game="Hearts"):
-		self.__deck = []
+	def __init__(self, game="Hearts", deck=None, mode="normal"):
+		self._deck = []
 		self.__numSuits = 4
 		self.__minRank = 2
 		self.__maxRank = -1
 		self.__game = game
 
-		if self.__game == "Hearts":
-			self.__maxRank = 14
-		elif self.__game == "Sueca":
-			self.__maxRank = 11
-		else:
-			raise Exception("Game not implemented")
+		if deck != None and mode=="encrypted":
+			self.addCards(deck)
 
-		for suit in range(0, self.__numSuits):
-			for rank in range(self.__minRank,self.__maxRank+1):
-				if self.__game == "Hearts": 
-					self.__deck.append(Card(Rank13(rank), Suit(suit)))
-				elif self.__game == "Sueca": 
-					self.__deck.append(Card(Rank10(rank), Suit(suit)))
+		if self._deck == []:
+			if self.__game == "Hearts":
+				self.__maxRank = 14
+			elif self.__game == "Sueca":
+				self.__maxRank = 11
+			else:
+				raise Exception("Game not implemented")
+
+		
+			for suit in range(0, self.__numSuits):
+				for rank in range(self.__minRank,self.__maxRank+1):
+					if self.__game == "Hearts": 
+						self._deck.append(Card(Rank13(rank), Suit(suit)))
+					elif self.__game == "Sueca": 
+						self._deck.append(Card(Rank10(rank), Suit(suit)))
 
 
 	def __str__(self):
 		deckStr = ''
 		for i in range(self.size()):
-			deckStr += self.__deck[i].__str__() 
+			deckStr += self._deck[i].__str__() 
 			if i != self.size()-1:
 				deckStr += ', '
 		return deckStr
 
 	def shuffle(self):
-		random.shuffle(self.__deck)
+		random.shuffle(self._deck)
+
+	def shuffle_return(self):
+		return random.sample(self._deck, self.size())
 
 	def deal_top(self):
-		return self.__deck.pop(0)
+		return self._deck.pop(0)
 
 	def deal_bottom(self):
-		return self.__deck.pop()
+		return self._deck.pop()
 
 	def deal_rand(self):
-		return self.__deck.pop(random.randint(0, self.size()))
+		#if self.size()==0:
+		#	print('EMPTY DECK!')
+		if self.size() == 1:
+			return self._deck.pop(0)
+		return self._deck.pop(random.randint(0, self.size()-1))
+
+	def switch(self, card):
+		ret_card = self.deal_rand()
+		self.addCards([card])
+
+		return ret_card
 
 	def sort(self):
-		self.__deck.sort()
+		self._deck.sort()
 
 	def size(self):
-		return len(self.__deck)
+		return len(self._deck)
 
-	def addCards(self,cards):
-		self.__deck += cards
+	def addCards(self, cards):
+		self._deck += cards
+
+	def __iter__(self):
+		''' Returns the Iterator object '''
+		return DeckIterator(self)
+	
+	def as_list(self):
+		return [card.as_dict() for card in self._deck]
+
+class DeckIterator:
+	''' Iterator class '''
+	def __init__(self, deck):
+		# Deck object reference
+		self._deck = deck
+		# member variable to keep track of current index
+		self._index = 0
+ 
+	def __next__(self):
+		''''Returns the next value from deck object's lists '''
+		if self._index < len(self._deck._deck) :
+			result = self._deck._deck[self._index]
+			self._index +=1
+			return result
+		# End of Iteration
+		raise StopIteration
+
 
 
 class Card:
@@ -82,14 +125,11 @@ class Card:
 	def __ne__(self, other):
 		return not (self == other)
 
-	def rank(self):
-		return self.rank
-
-	def suit(self):
-		return self.suit
-
 	def __str__(self):
 		return self.rank.__str__() + self.suit.__str__()
+	
+	def as_dict(self):
+		return {'rank':self.rank,'suit':self.suit}
 
 #Suit identification (iden, trump); Trump is a boolean variable
 UNDEFINED = -1
@@ -369,6 +409,25 @@ class Hand:
 				handStr += card.__str__() + ' '
 		return handStr
 
+class Encrypted_Hand:
+	def __init__(self, n):
+		self.__cardsPerPlayer = n
+		self.value = []
+
+	def add_encrypted_card(self, e_card):
+		self.value.append(e_card)
+
+	def remove_encrypted_card(self, e_card):
+		return self.value.pop(self.value.index(e_card))
+			
+	def size(self):
+		return len(self.value)
+
+	def __str__(self):
+		handStr = ''
+		for e_card in self.value:
+			handStr += e_card.__str__() + ' '
+		return handStr
 
 class Trick:
 	def __init__(self, game="Hearts", n=4):
@@ -460,17 +519,102 @@ class Trick:
 
 
 class Player:
-	def __init__(self, id, name, game="Hearts", auto=False):
-		self.id = id
+	def __init__(self, name, game="Hearts", auto=False):
 		self.name = name
 		self.crypto = Crypto()
 		self.score = 0
 		self.total_score = 0
 		self.tricksWon = []
 		self.autoplay = auto
-		n = 13 if game == "Hearts" else 10
+		self.n = 13 if game == "Hearts" else 10
+		
+		print("{} {}".format(self.name, "generated asymmetric keys with sucess" if self.generate_asymmetric_keys() else "Failed to generate asymmetric keys"))
 
-		self.hand = Hand(n)
+		self.encrypted_hand = Encrypted_Hand(self.n)
+		self.hand = Hand(self.n)
+
+	def shuffle_deck(self, deck):
+		print("{} {}".format(self.name, "generated Fernet key with sucess" if self.generate_fernet_key() else "Failed to generate Fernet key"))
+
+		### BEGIN ENCRYPT DECK ###
+		new_cards = []
+		for card in deck:
+			#print(str(card))
+			if type(card) == Card:
+				card = bytes(card)
+			new_cards += [self.encrypt_card(card)]
+		#print(new_cards)		
+		new_deck = Deck(deck=new_cards, mode="encrypted")
+		### END ENCRYPT DECK ###
+		#print(new_deck)
+		new_deck.shuffle()
+		return new_deck, self.crypto.fernet_key
+
+	def deal_card(self, deck):
+		return deck.deal_rand()
+
+	def pick_or_pass(self, deck):
+		decision_ch, decision_n = self.pick_or_pass_decision(deck)
+
+		if decision_ch == 'empty':	
+			return False
+		elif decision_ch == 'pick':
+			self.add_encrypted_card(self.deal_card(deck))
+		elif decision_ch == 'pass' and decision_n > 0:
+			cards_to_switch = random.sample(self.encrypted_hand.value, decision_n)
+
+			for c in cards_to_switch:
+				self.remove_encrypted_card(c)
+
+			for n in range(decision_n):
+				new_card = deck.switch(cards_to_switch[n])
+				self.add_encrypted_card(new_card)
+
+		return deck
+
+	def pick_or_pass_decision(self, deck):
+		p = 0.05
+		maximum = self.encrypted_hand.size() if self.encrypted_hand.size() <= deck.size() else deck.size()
+		n = random.randint(0, maximum)
+
+		if self.encrypted_hand == []:
+			return ('pick', 1)
+
+		if deck.size() == 0:
+			return ('empty', 0)
+
+		if self.encrypted_hand.size() < self.n:
+			choices_v = ('pick', 'pass')
+			choices_p = (p, 1-p)
+			ch = random.choices(choices_v, weights=choices_p)[0]
+
+			return (ch, 1) if ch == 'pick' else (ch, n)
+		
+		return ('pass', n)
+
+	def decrypt_hand(self, deck_ciphers):
+		self.crypto.all_fernet_keys = deck_ciphers	
+		for e_card in self.encrypted_hand.value:
+			### BEGIN DECRYPT ###
+			card_str = self.decrypt_card(e_card).decode()
+			card_card = self.recreate_card(card_str)
+			#print(card_card)
+			### END DECRYPT ###
+			self.addCard(card_card)
+
+		self.encrypted_hand = Encrypted_Hand(self.n)
+
+
+	def add_encrypted_card(self, card):
+		self.encrypted_hand.add_encrypted_card(card)
+
+	def remove_encrypted_card(self, card):
+		self.encrypted_hand.remove_encrypted_card(card)
+
+	def recreate_card(self, card_str):
+		ranks = {'2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14}
+		suits = {'c': CLUBS, 'd': DIAMONDS, 's': SPADES, 'h': HEARTS}
+		return Card(Rank13(ranks[card_str[:-1]]), Suit(suits[card_str[-1]]))
 
 	def addCard(self, card):
 		self.hand.addCard(card)
@@ -488,10 +632,11 @@ class Player:
 			card = c
 
 		elif self.autoplay or auto:
+
 			if suit is None:
 				return self.hand.getRandomCard()
-			
 			return self.hand.getRandomCard(suit)
+
 		else:
 			card = self.getInput(option)
 
@@ -517,8 +662,26 @@ class Player:
 	def generate_asymmetric_keys(self):
 		return self.crypto.key_pair_gen(4096)
 
+	def generate_fernet_key(self):
+		return self.crypto.generate_fernet_key()
+
 	def perform_bit_commitment(self):
 		return self.crypto.calculate_bit_commitment(self.hand)
 
-	def verify_bit_commitment(self, bit_commitment, commitment_reveal):
-		return self.crypto.verify_bit_commitment(bit_commitment, commitment_reveal)
+	def save_bit_commitment(self, player_name, bit_commitment):
+		self.crypto.other_bit_commitments[player_name] = bit_commitment
+
+	def verify_bit_commitment_signature(self, bit_commitment):
+		return self.crypto.verify_bit_commitment_signature(bit_commitment)
+	
+	def save_commitment_reveal(self, player_name, commitment_reveal):
+		self.crypto.other_commitments_reveal[player_name] = commitment_reveal
+
+	def verify_commitment(self, bit_commitment, commitment_reveal):
+		return self.crypto.verify_commitment_reveal(bit_commitment, commitment_reveal)
+
+	def encrypt_card(self, card):
+		return self.crypto.encrypt_card(card)
+
+	def decrypt_card(self, card):
+		return self.crypto.decrypt_card(card)

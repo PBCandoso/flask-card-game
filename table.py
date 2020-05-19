@@ -127,7 +127,7 @@ class Hearts_Table():
 			searches for actual state and updates and/or send a message
 			'''
 			logger.debug('{} - {}'.format(mtype, self.state))
-
+			ALL_ACK=1
 			if self.ack == ALL_ACK:
 				self.ack = 0
 
@@ -143,7 +143,7 @@ class Hearts_Table():
 				if self.state == STATE_NEW_ROUND:
 					# sent before: ROUND_UPDATE
 					
-					message = {'type': 'SHUFFLE_REQUEST', 'parameters':{'deck': self.deck.__dict__}}
+					message = {'type': 'SHUFFLE_REQUEST', 'parameters':{'deck': self.deck.as_list()}}
 					return message
 					#sid = random.choices(self.players)
 					#self._send(message, sid)
@@ -246,7 +246,7 @@ class Hearts_Table():
 			
 			if self.needs_to_do_something != []:
 				message = {'type':'SHUFFLE_REQUEST', 'parameters':{'deck': deck}}
-				sid = random.choices(self.needs_to_do_something)	
+				sid = random.choices(self.needs_to_do_something)
 			else:
 				self.needs_to_do_something = self.players
 				message = {'type':'PICK_OR_PASS_REQUEST', 'parameters':{'deck': deck}}

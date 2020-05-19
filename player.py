@@ -1,0 +1,292 @@
+from card_game import Player
+from utils import Crypto
+import asyncio
+import json
+import base64
+import binascii
+import argparse
+import coloredlogs, logging
+import re
+import os
+
+logger = logging.getLogger('Player')
+
+STATE_CONNECT = 0
+STATE_READY = 1
+STATE_NEW_ROUND = 2
+STATE_GAME = 3
+STATE_CLOSE = 4
+
+class Game_Player(asyncio.Protocol):
+	def __init__(self):
+		self.name = input("Name: ")
+		self.player = Player(self.name, auto=True)
+
+		#self.sid = x		# session id from socketio
+
+		self.round_number = 0
+		self.trick_number = 0
+
+	def restart(self):
+		self.player.score = 0
+		self.player.tricksWon = []
+
+	def log_state(self, received):
+		#states = ['NEGOTIATION', 'DH', 'ROTATION','CONNECT', 'OPEN', 'DATA', 'CLOSE']
+		#logger.info("State: {}".format(states[self.state]))
+		logger.info("Received: {}".format(received))
+
+
+	def connection_made(self, transport) -> None:
+		"""
+		Called when the client connects.
+
+		:param transport: The transport stream to use for this client
+		:return: No return
+		"""
+		self.transport = transport
+
+		logger.info('Connected to Table')
+		message = {'type': 'READY'}
+		#self._send(message)
+		self.state = STATE_READY
+
+	def on_frame(self, frame: str) -> None:
+		"""
+		Processes a frame (JSON Object)
+
+		:param frame: The JSON Object to process
+		:return:
+		"""
+
+		#logger.debug("Frame: {}".format(frame))
+
+		try:
+			message = json.loads(frame)
+		except:
+			logger.exception("Could not decode the JSON message")
+			self.transport.close()
+			return
+
+		mtype = message.get('type', None)
+		self.log_state(mtype)
+
+		if mtype == 'ROUND_UPDATE':
+			logger.debug('ROUND_UPDATE')
+			self.round_number = message['parameters']['round_number']
+			logger.info('Current round: {}'.format(self.round_number))
+
+			if self.state == STATE_READY:
+				logger.debug('Starting first round')
+
+			elif self.state == STATE_GAME:
+				self.restart()
+				logger.debug('Starting new round')
+
+			self.state = STATE_NEW_ROUND
+			message = {'type': 'OK'}
+			#self._send(message)
+
+			return
+
+		elif mtype == 'SHUFFLE_REQUEST':
+			logger.debug('SHUFFLE_REQUEST')
+
+			deck = message['parameters']['deck']
+			new_deck, cipher = self.process_shuffle_response(deck)
+			
+			message = {'type':'SHUFFLE_RESPONSE', 'parameters':{'deck': new_deck, 'encryption_key': cipher}}
+			#self._send(message)
+			self.state = STATE_GAME
+			
+			return
+
+		elif mtype == 'PICK_OR_PASS_REQUEST':
+			logger.debug('PICK_OR_PASS_REQUEST')
+
+			deck = message['parameters']['deck']
+			new_deck = self.process_pick_or_pass_response(deck)
+
+			message = {'type': 'PICK_OR_PASS_RESPONSE', 'parameters':{'deck': new_deck}}
+			#self._send(message)
+			return
+
+		elif mtype == 'DISTRIBUTE_ENCRYPTION_KEYS':
+			logger.debug('DISTRIBUTE_ENCRYPTION_KEYS')
+			encryption_keys = message['parameters']['encryption_keys']
+			self.decrypt_hand(encryption_keys)
+			message = {'type': 'OK'}
+			#self._send(message)
+			return
+
+		elif mtype == 'PASS_CARD_REQUEST' or mtype == 'PASS_CARD_REQUEST_ERROR':
+			logger.debug('PASS_CARD_REQUEST')
+			pass_card = self.process_pass_card_request()
+			if pass_card is not None:
+				self.player.removeCard(pass_card)
+			message = {'type':'PASS_CARD_RESPONSE', 'parameters':{'card': pass_card}}
+			#self._send(message)
+			return
+
+		elif mtype == 'DISTRIBUTE_PASSED_CARDS':
+			logger.debug('DISTRIBUTE_PASSED_CARDS')
+			cards = message['parameters']['cards']
+			for card in cards:
+				self.player.addCard(card)
+			message = {'type': 'OK'}
+			#self._send(message)
+			return
+
+		elif mtype == 'BIT_COMMITMENT_REQUEST':
+			logger.debug('BIT_COMMITMENT_REQUEST')
+			bit_commitment = self.process_bit_commitment_request()
+			message = {'type': 'BIT_COMMITMENT_RESPONSE', 'parameters':{'bit_commitment':bit_commitment}}
+			#self._send(message)
+			return
+
+		elif mtype == 'DISTRIBUTE_BIT_COMMITMENTS':
+			logger.debug('DISTRIBUTE_BIT_COMMITMENTS')
+			bit_commitments = message['parameters']['all_bit_commitments']
+			for name,commit in bit_commitments:
+				self.save_bit_commitments(name, commit)
+			self.process_bit_commitments()
+			return
+
+		elif mtype == 'STARTER_REQUEST':
+			logger.debug('STARTER_REQUEST')
+			flag=self.check_starter_request()
+
+			message = {'type': 'STARTER_RESPONSE', 'parameters':{'value': flag}}
+			#self._send(message)
+			return
+
+		elif mtype == 'PLAY_CARD_REQUEST' or mtype == 'PLAY_CARD_REQUEST_ERROR':
+			logger.debug('PLAY_CARD_REQUEST')
+			play_card = self.process_play_card_request()
+			if play_card is not None:
+				self.player.removeCard(play_card)
+			message = {'type':'PLAY_CARD_RESPONSE', 'parameters':{'card': play_card}}
+			#self._send(message)
+			return
+
+		elif mtype == 'TRICK_UPDATE':
+			logger.debug('TRICK_UPDATE')
+			trick = message['parameters']['current_trick']
+			self.trick_number = message['parameters']['trick_number']
+			winner = message['parameters']['trick_winner']
+			#if winner == self.sid:
+			#	self.player.trickWon(trick)
+			logger.info(trick)
+			message = {'type': 'OK'}
+			#self._send(message)
+			return
+
+		elif mtype == 'COMMITMENT_REVEAL_REQUEST':
+			logger.debug('COMMITMENT_REVEAL_REQUEST')
+			commitment_reveal = self.process_commitment_reveal_request()
+			message = {'type': 'COMMITMENT_REVEAL_RESPONSE', 'parameters':{'commitment_reveal': commitment_reveal}}
+			#self._send(message)
+			return
+
+		elif mtype == 'DISTRIBUTE_COMMITMENT_REVEALS':
+			logger.debug('DISTRIBUTE_COMMITMENT_REVEALS')
+			commitment_reveals = message['parameters']['all_commitment_reveals']
+			for name, commit in commitment_reveals:
+				self.save_commitment_reveals(name, commit)
+			self.process_commitment_reveals()
+			return
+
+		elif mtype == 'MISMATCH_VERIFICATION':
+			logger.debug('MISMATCH_VERIFICATION')
+			message = {'type':'OK'}
+			#self._send(message)
+			return
+
+		elif mtype == 'DISPLAY_SCORE':
+			logger.debug('DISPLAY_SCORE')
+			scores = message['parameters']['scores']
+			message = {'type':'OK'}
+			self.player.discardTricks()
+			#self._send(message)
+			return
+
+		elif mtype == 'DISPLAY_WINNER':
+			logger.debug('DISPLAY_WINNER')
+			winner = message['parameters']['winner']
+			message = {'type':'OK'}
+			#self._send(message)
+			self.state = STATE_CLOSE
+			return
+
+		elif mtype == 'OK':
+			logger.warning("Ignoring message from server")
+			return
+
+		elif mtype == 'ERROR':
+			logger.warning("Got error from server: {}".format(message.get('data', None)))
+		
+		else:
+			logger.warning("Invalid message type")
+
+		logger.debug('Closing')
+		self.transport.close()
+
+	def process_shuffle_response(self, deck):
+		new_deck, encryption_key = self.player.shuffle_deck(deck)
+		return (new_deck, encryption_key)
+		
+	def process_pick_or_pass_response(self, deck):
+		return self.player.pick_or_pass(deck)
+
+	def decrypt_hand(self, keys_list):
+		self.player.decrypt_hand(keys_list)
+
+	def process_bit_commitment_request(self):
+		self.player.perform_bit_commitment()
+		return self.player.crypto.bit_commitment
+
+	def save_bit_commitments(self, bit_commit_dic):
+		for name, bit_commit in bit_commit_dic:
+			if name != self.player.name:
+				self.player.crypto.players_bit_commitments[name] = bit_commit
+	
+	def process_bit_commitments(self):
+		names = []
+		for name, bit_commit in self.player.crypto.players_bit_commitments:
+			if self.player.verify_bit_commitment_signature(bit_commit):
+				names.append(name)
+		logger.warning('SIGNATURE_MISMATCH: {}'.format(names))
+		message = {'type': 'OK'} if len(names)==0 else {'type': 'SIGNATURE_MISMATCH', 'player':names}
+		#self._send(message)
+
+	def process_pass_card_request(self):
+		return self.player.play(option='pass')
+
+	def check_starter_request(self):
+		return self.player.hand.contains2ofclubs
+
+	def process_play_card_request(self, card=None):
+		if card != None:
+			card = self.player.play(option='play', c=card)
+		else:
+			card = self.player.play(option='play')
+			
+		self.player.removeCard(card)
+		return card
+
+	def process_commitment_reveal_request(self):
+		return self.player.crypto.commitment_reveal
+
+	def save_commitment_reveals(self, commit_reveal_dic):
+		for name, commit_reveal in commit_reveal_dic:
+			if name != self.player.name:
+				self.player.crypto.other_commitments_reveal[name] = commit_reveal
+
+	def process_commitment_reveals(self):
+		names = []
+		for name, commit_reveal in self.player.crypto.other_commitments_reveal:
+			if self.player.verify_commitment(commit_reveal):
+				names.append(name)
+		logger.warning('MISMATCH_ERROR: {}'.format(names))
+		message = {'type': 'OK'} if len(names)==0 else {'type': 'MISMATCH_ERROR', 'parameters':{'players': names}}
+		#self._send(message)
