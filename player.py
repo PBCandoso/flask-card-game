@@ -248,7 +248,7 @@ class Game_Player():
 		return self.player.hand.contains2ofclubs
 
 	def process_play_card_request(self, card=None):
-		if card != None:
+		if card is not None:
 			card = self.player.play(option='play', c=card)
 		else:
 			card = self.player.play(option='play')
@@ -266,9 +266,9 @@ class Game_Player():
 
 	def process_commitment_reveals(self):
 		names = []
-		#for name, commit_reveal in self.player.crypto.other_commitments_reveal:
-			#if self.player.verify_commitment(commit_reveal):
-				#names.append(name)
+		for name, commit_reveal in self.player.crypto.other_commitments_reveal:
+			if self.player.verify_commitment(commit_reveal):
+				names.append(name)
 		logger.warning('MISMATCH_ERROR: {}'.format(names))
 		message = {'type': 'OK'} if len(names)==0 else {'type': 'MISMATCH_ERROR', 'parameters':{'players': names}}
 		#self._send(message)

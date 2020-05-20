@@ -1,4 +1,4 @@
-from card_game import Deck, Card, Suit, Rank, Rank13, Trick
+from card_game import Deck, Card, Trick
 from utils import Crypto
 from player import Game_Player
 import asyncio
@@ -9,7 +9,6 @@ import argparse
 import coloredlogs, logging
 import os
 import random
-from aio_tcpserver import tcp_server
 
 logger = logging.getLogger('Table')
 level = logging.INFO
@@ -79,8 +78,6 @@ class Hearts_Table():
 		'''
 
 	def log_state(self, received):
-		#states = ['NEGOTIATION', 'DH', 'ROTATION','CONNECT', 'OPEN', 'DATA', 'CLOSE']
-		#logger.info("State: {}".format(states[self.state]))
 		logger.info("Received: {}".format(received))
 
 	def join(self,sid):
@@ -91,9 +88,9 @@ class Hearts_Table():
 			if sid in self.players:
 				return ['inroom']
 			self.players.append(sid)
-			randnames = random.choices(NAMES_LIST, k=4)
-			self.sid_maped_with_players[sid]= Game_Player(sid,randnames)
-			return ['success',randnames,len(self.players)-1]
+			randnames = random.choices(NAMES_LIST, k=len(self.players))
+			self.sid_maped_with_players[sid] = Game_Player(sid, randnames)
+			return ['success', randnames, len(self.players)-1]
 
 	def on_frame(self, sid, frame):
 		"""
@@ -141,24 +138,31 @@ class Hearts_Table():
 					# sent before: ROUND_UPDATE
 					#message = {'type': 'SHUFFLE_REQUEST', 'parameters':{'deck': self.deck.as_list()}}
 					sid = random.choices(self.players)
-					# random player shuffles the deck
-					newdeck,cypher = self.sid_maped_with_players[sid].process_shuffle_response(self.deck)
-					self.shuffle_response(sender_id,newdeck,cypher)
 
-				elif self.state == STATE_DECRYPTION:
-					# sent before: DISTRIBUTE_ENCRYPTION_KEYS
+					self.players_shuffle()
+					self.players_card_distribution()
+					self.players_decrypt()
+
+					self.state = STATE_PASS
 
 					if (self.trick_num % 4) != 0: # don't pass every fourth hand
-						self.state = STATE_PASS
 						message = {'type': 'PASS_CARD_REQUEST'}
 						#self._send(message, sid)
 					else:
+						self.players_make_commitments()
+						self.save_bit_commitments()
+						self.distribute_bit_commitments()
+						self.players_process_commitments_signatures()
 						self.state = STATE_COMMITMENT
-						message = {'type': 'BIT_COMMITMENT_REQUEST'}
+
 						#self._send(message)
 
 				elif self.state == STATE_PASS:
-					# sent before: DISTRIBUTE_BIT_COMMITMENTS
+					# sent before: DISTRIBUTE_PASSED_CARDS
+					self.players_make_commitments()
+					self.save_bit_commitments()
+					self.distribute_bit_commitments()
+					self.players_process_commitments_signatures()
 						
 					self.state = STATE_COMMITMENT
 					message = {'type': 'BIT_COMMITMENT_REQUEST'}
@@ -183,6 +187,10 @@ class Hearts_Table():
 
 					# NEXT: REVEAL COMMITMENTS
 					else:
+						self.save_commitment_reveals()
+						self.distribute_commitments_reveal()
+						self.players_process_commitments_reveal()
+
 						self.state = STATE_VERIFY
 						message = {'type': 'COMMITMENT_REVEAL_REQUEST'}
 						#self._send(message)
@@ -197,7 +205,7 @@ class Hearts_Table():
 					#self._send(message)
 
 					# The game will end. Someone lost
-					if self.losing_player[0] != None and self.losing_player[1] >= MAX_SCORE:
+					if self.losing_player[0] is None and self.losing_player[1] >= MAX_SCORE:
 						self.state = STATE_RESULTS
 					else:
 						self.state == STATE_NEW_ROUND
@@ -229,47 +237,12 @@ class Hearts_Table():
 			else:
 				return {'data':'WAITING FOR PLAYERS'}
 
-		elif mtype == 'SHUFFLE_RESPONSE':
-			logger.debug('SHUFFLE_RESPONSE')
-			#sender_sid = sid
-			#self.needs_to_do_something.pop(sender_sid)
-
-			deck = message['parameters']['deck']
-			encryption_key = message['parameters']['encryption_key']
-			self.crypto.all_fernet_keys.append(encryption_key)
-
-			#sender_sid = sid
-			#self.needs_to_do_something.pop(sender_sid)
-			
-			if self.needs_to_do_something != []:
-				message = {'type':'SHUFFLE_REQUEST', 'parameters':{'deck': deck}}
-				sid = random.choices(self.needs_to_do_something)
-			else:
-				self.needs_to_do_something = self.players
-				message = {'type':'PICK_OR_PASS_REQUEST', 'parameters':{'deck': deck}}
-				sid = random.choices(self.players)
-
-			return
-
-		elif mtype == 'PICK_OR_PASS_RESPONSE':
-			logger.debug('PICK_OR_PASS_RESPONSE')
-
-			deck = message['parameters']['deck']
-			if len(deck) != 0:
-				message = {'type': 'PICK_OR_PASS_REQUEST', 'parameters':{'deck': deck}}
-				sid = random.choices(self.players)
-				#self._send(message, sid)
-			else:
-				self.state = STATE_DECRYPTION
-				message = {'type': 'DISTRIBUTE_ENCRYPTION_KEYS', 'parameters':{'encryption_keys': self.crypto.all_fernet_keys}}
-				#self._send(message)
-			return
 
 		elif mtype == 'PASS_CARD_RESPONSE':
 			logger.debug('PASS_CARD_RESPONSE')
 			pass_card = message['parameters']['card']
-			#sender_sid = sid
-			flag, pass_to = self.pass_card(index=self.players.index(sender_sid) , pass_card=pass_card)
+			sender_sid = sid
+			flag, pass_to = self.pass_card(index=self.players.index(sender_sid), pass_card=pass_card)
 
 			if not flag:
 				# card not accepted; repeats request
@@ -298,20 +271,6 @@ class Hearts_Table():
 
 			return
 
-		elif mtype == 'BIT_COMMITMENT_RESPONSE':
-			logger.debug('BIT_COMMITMENT_RESPONSE')
-			bit_commitment = message['parameters']['bit_commitment']
-
-			self.crypto.players_bit_commitments[sid] = bit_commitment
-			#sender_sid = sid
-			#self.needs_to_do_something.pop(sender_sid)
-			
-			if self.needs_to_do_something == []:
-				self.needs_to_do_something = self.players
-				self.state = STATE_COMMITMENT
-				message = {'type': 'DISTRIBUTE_BIT_COMMITMENTS', 'parameters':{'all_bit_commitments': self.crypto.players_bit_commitments}}
-				#self._send(message)
-			return
 
 		elif mtype == 'SIGNATURE_FAILED':
 			logger.debug('SIGNATURE_FAILED')
@@ -367,19 +326,6 @@ class Hearts_Table():
 					#self._send(message)
 			return
 
-		elif mtype == 'COMMITMENT_REVEAL_RESPONSE':
-			logger.debug('COMMITMENT_REVEAL_RESPONSE')
-			commitment_reveal = message['parameters']['commitment_reveal']
-
-			self.crypto.players_commitments_reveal[sid] = commitment_reveal
-			#send_sid = sid
-			#self.needs_to_do_something.pop(sender_sid)
-			
-			if self.needs_to_do_something == []:
-				self.needs_to_do_something = self.players
-				message = {'type': 'DISTRIBUTE_COMMITMENT_REVEALS', 'parameters':{'all_commitment_reveals': self.crypto.players_commitments_reveal}}
-				#self._send(message)
-			return
 
 		elif mtype == 'MISMATCH_ERROR':
 			logger.debug('MISMATCH_ERROR')
@@ -426,28 +372,61 @@ class Hearts_Table():
 			self.state = STATE_CLOSE
 			#self.transport.close()
 
-	def shuffle_response(self,sid,deck,key):
-		logger.debug('SHUFFLE_RESPONSE')
-		sender_sid = sid
-		self.needs_to_do_something.pop(sender_sid)
+	def players_shuffle(self):
+		# every player shuffles (and encrypts) the deck
+		for sid in self.players:
+			self.deck, cypher = self.sid_maped_with_players[sid].player.shuffle_deck(self.deck)
+			self.deck_ciphers.append(cypher)
 
-		encryption_key = key
-		self.crypto.all_fernet_keys.append(encryption_key)
-		
-		if self.needs_to_do_something != []:
-			message = {'type':'SHUFFLE_REQUEST', 'parameters':{'deck': deck}}
-			sid = random.choices(self.needs_to_do_something)
-		else:
-			self.needs_to_do_something = self.players
-			message = {'type':'PICK_OR_PASS_REQUEST', 'parameters':{'deck': deck}}
-			sid = random.choices(self.players)
+	def players_card_distribution(self):
+		# distributes cards
+		while self.deck.size() > 0:
+			for sid in self.sid_maped_with_players.keys():
+				if not self.sid_maped_with_players[sid].player.pick_or_pass(self.deck):
+					break
 
-		return
+	def players_decrypt(self):
+		for sid in self.players:
+			self.sid_maped_with_players[sid].player.decrypt_hand(self.deck_ciphers)
+
+	def players_make_commitments(self):
+		for sid in self.sid_maped_with_players.keys():
+			self.sid_maped_with_players[sid].player.perform_bit_commitment()
+
+	def save_bit_commitments(self):
+		for sid in self.sid_maped_with_players.keys():
+			self.save_bit_commitment(sid, self.sid_maped_with_players[sid].player.crypto.bit_commitment)
+			logger.info("{} bit commitment: {}".format(sid, self.sid_maped_with_players[sid].player.crypto.bit_commitment))
+
+	def distribute_bit_commitments(self):
+		for i, sid1 in enumerate(self.sid_maped_with_players.keys()):
+			for j, sid2 in enumerate(self.sid_maped_with_players.keys()):
+				if sid2 != sid1:														# pass the right name
+					self.sid_maped_with_players[sid1].player.crypto.other_bit_commitments[self.self.sid_maped_with_players[sid2].name] = self.sid_maped_with_players[sid2].crypto.bit_commitment
+
+	def players_process_commitments_signatures(self):
+		for sid in self.sid_maped_with_players.keys():
+			self.sid_maped_with_players[sid].process_bit_commitments()
+
+	def save_commitment_reveals(self):
+		for sid in self.sid_maped_with_players.keys():
+			self.save_commitment_reveal(sid, self.sid_maped_with_players[sid].player.crypto.commitment_reveal)
+			logger.info("{} bit commitment: {}".format(sid, self.sid_maped_with_players[sid].player.crypto.commitment_reveal))
+
+	def distribute_commitments_reveal(self):
+		for i, sid1 in enumerate(self.sid_maped_with_players.keys()):
+			for j, sid2 in enumerate(self.sid_maped_with_players.keys()):
+				if sid2 != sid1:													# save the name here for the player
+					self.sid_maped_with_players[sid1].crypto.other_commitments_reveal[self.players[j].name] = self.sid_maped_with_players[sid2].crypto.commitment_reveal
+
+	def players_process_commitments_reveal(self):
+		for sid in self.sid_maped_with_players.keys():
+			self.sid_maped_with_players[sid].process_commitment_reveals()
 
 	def get_winner(self):
 		min_score = 1000 # impossibly high
 		winner = None
-		for sid,score in self.total_scores:
+		for sid, score in self.total_scores:
 			if score < min_score:
 				winner = sid
 				min_score = score
