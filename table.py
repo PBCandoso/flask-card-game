@@ -165,8 +165,6 @@ class Hearts_Table():
 					self.players_process_commitments_signatures()
 						
 					self.state = STATE_COMMITMENT
-					message = {'type': 'BIT_COMMITMENT_REQUEST'}
-					#self._send(message)
 
 				elif self.state == STATE_COMMITMENT:
 					# sent before: DISTRIBUTE_BIT_COMMITMENTS
@@ -192,8 +190,6 @@ class Hearts_Table():
 						self.players_process_commitments_reveal()
 
 						self.state = STATE_VERIFY
-						message = {'type': 'COMMITMENT_REVEAL_REQUEST'}
-						#self._send(message)
 
 
 				elif self.state == STATE_VERIFY:
@@ -205,10 +201,10 @@ class Hearts_Table():
 					#self._send(message)
 
 					# The game will end. Someone lost
-					if self.losing_player[0] is None and self.losing_player[1] >= MAX_SCORE:
+					if self.losing_player[0] is not None and self.losing_player[1] >= MAX_SCORE:
 						self.state = STATE_RESULTS
 					else:
-						self.state == STATE_NEW_ROUND
+						self.state = STATE_NEW_ROUND
 						self.new_round()
 						message = {'type': 'ROUND_UPDATE', 'parameters':{'round_number': self.round_num}}
 						#self._send(message)
@@ -375,19 +371,19 @@ class Hearts_Table():
 	def players_shuffle(self):
 		# every player shuffles (and encrypts) the deck
 		for sid in self.players:
-			self.deck, cypher = self.sid_maped_with_players[sid].player.shuffle_deck(self.deck)
+			self.deck, cypher = self.sid_maped_with_players[sid].process_shuffle_response(self.deck)
 			self.deck_ciphers.append(cypher)
 
 	def players_card_distribution(self):
 		# distributes cards
 		while self.deck.size() > 0:
 			for sid in self.sid_maped_with_players.keys():
-				if not self.sid_maped_with_players[sid].player.pick_or_pass(self.deck):
+				if not self.sid_maped_with_players[sid].process_pick_or_pass_response(self.deck):
 					break
 
 	def players_decrypt(self):
 		for sid in self.players:
-			self.sid_maped_with_players[sid].player.decrypt_hand(self.deck_ciphers)
+			self.sid_maped_with_players[sid].decrypt_hand(self.deck_ciphers)
 
 	def players_make_commitments(self):
 		for sid in self.sid_maped_with_players.keys():

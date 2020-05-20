@@ -66,41 +66,12 @@ class Game_Player():
 				self.restart()
 				logger.debug('Starting new round')
 
-			self.state = STATE_NEW_ROUND
-			message = {'type': 'OK'}
-			#self._send(message)
-
-			return
-
-		elif mtype == 'SHUFFLE_REQUEST':
-			logger.debug('SHUFFLE_REQUEST')
-
-			deck = message['parameters']['deck']
-			new_deck, cipher = self.process_shuffle_response(deck)
-			
-			message = {'type':'SHUFFLE_RESPONSE', 'parameters':{'deck': new_deck, 'encryption_key': cipher}}
-			#self._send(message)
 			self.state = STATE_GAME
-			
-			return
-
-		elif mtype == 'PICK_OR_PASS_REQUEST':
-			logger.debug('PICK_OR_PASS_REQUEST')
-
-			deck = message['parameters']['deck']
-			new_deck = self.process_pick_or_pass_response(deck)
-
-			message = {'type': 'PICK_OR_PASS_RESPONSE', 'parameters':{'deck': new_deck}}
-			#self._send(message)
-			return
-
-		elif mtype == 'DISTRIBUTE_ENCRYPTION_KEYS':
-			logger.debug('DISTRIBUTE_ENCRYPTION_KEYS')
-			encryption_keys = message['parameters']['encryption_keys']
-			self.decrypt_hand(encryption_keys)
 			message = {'type': 'OK'}
 			#self._send(message)
+
 			return
+
 
 		elif mtype == 'PASS_CARD_REQUEST' or mtype == 'PASS_CARD_REQUEST_ERROR':
 			logger.debug('PASS_CARD_REQUEST')
@@ -117,13 +88,6 @@ class Game_Player():
 			for card in cards:
 				self.player.addCard(card)
 			message = {'type': 'OK'}
-			#self._send(message)
-			return
-
-		elif mtype == 'BIT_COMMITMENT_REQUEST':
-			logger.debug('BIT_COMMITMENT_REQUEST')
-			bit_commitment = self.process_bit_commitment_request()
-			message = {'type': 'BIT_COMMITMENT_RESPONSE', 'parameters':{'bit_commitment':bit_commitment}}
 			#self._send(message)
 			return
 
@@ -161,13 +125,6 @@ class Game_Player():
 			#	self.player.trickWon(trick)
 			logger.info(trick)
 			message = {'type': 'OK'}
-			#self._send(message)
-			return
-
-		elif mtype == 'COMMITMENT_REVEAL_REQUEST':
-			logger.debug('COMMITMENT_REVEAL_REQUEST')
-			commitment_reveal = self.process_commitment_reveal_request()
-			message = {'type': 'COMMITMENT_REVEAL_RESPONSE', 'parameters':{'commitment_reveal': commitment_reveal}}
 			#self._send(message)
 			return
 
