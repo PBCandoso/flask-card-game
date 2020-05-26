@@ -175,7 +175,8 @@ class Game_Player():
 		return (new_deck, encryption_key)
 		
 	def process_pick_or_pass_response(self, deck):
-		return self.player.pick_or_pass(deck)
+		resp = self.player.pick_or_pass(deck)
+		return resp
 
 	def decrypt_hand(self, keys_list):
 		self.player.decrypt_hand(keys_list)
@@ -194,9 +195,6 @@ class Game_Player():
 		for name, bit_commit in self.player.crypto.players_bit_commitments:
 			if self.player.verify_bit_commitment_signature(bit_commit):
 				names.append(name)
-		logger.warning('SIGNATURE_MISMATCH: {}'.format(names))
-		message = {'type': 'OK'} if len(names)==0 else {'type': 'SIGNATURE_MISMATCH', 'player':names}
-		#self._send(message)
 
 	def process_pass_card_request(self):
 		return self.player.play(option='pass')

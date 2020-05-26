@@ -110,6 +110,7 @@ def joinRoom(message):
         join = rooms[message].join(request.sid)
         if join[0] == 'success':
             # status = status, names = player names , players = number fo players
+            print(join[1])
             emit('join-room',{'id':message, 'status': join[0], 'names': join[1], 'players': join[2]})
             # broadcast player join
             emit('join-room',{'id':message, 'status': 'opponent'},broadcast=True,include_self=False)
@@ -133,7 +134,12 @@ def msg(message):
     room = message['room']
     game = rooms[room]
     (tosend,broadcast) = game.on_frame(request.sid,message['data'])
-    emit('hearts-message',tosend,broadcast=broadcast)
+    if broadcast == 'broadcast':
+        emit('hearts-message',tosend,broadcast=True)
+    elif broadcast == 'reply':
+        emit('hearts-message',tosend)
+    else:
+        emit('hearts-message',room=broadcast)
 
 if __name__ == '__main__':
     socketio.run(app)

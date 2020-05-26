@@ -74,9 +74,6 @@ class Deck:
 	def __iter__(self):
 		''' Returns the Iterator object '''
 		return DeckIterator(self)
-	
-	def as_list(self):
-		return [card.as_dict() for card in self._deck]
 
 class DeckIterator:
 	''' Iterator class '''
@@ -127,9 +124,15 @@ class Card:
 
 	def __str__(self):
 		return self.rank.__str__() + self.suit.__str__()
-	
-	def as_dict(self):
-		return {'rank':self.rank,'suit':self.suit}
+
+	def __bytes__(self):
+		return bytes(self.__str__(), encoding='utf-8')
+
+	def encode(self):
+		return self.__str__().encode('utf-8')
+
+	def decode(self):
+		return self.__bytes__().decode('utf-8')
 
 #Suit identification (iden, trump); Trump is a boolean variable
 UNDEFINED = -1
@@ -603,7 +606,6 @@ class Player:
 			self.addCard(card_card)
 
 		self.encrypted_hand = Encrypted_Hand(self.n)
-
 
 	def add_encrypted_card(self, card):
 		self.encrypted_hand.add_encrypted_card(card)

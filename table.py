@@ -88,7 +88,7 @@ class Hearts_Table():
 			if sid in self.players:
 				return ['inroom']
 			self.players.append(sid)
-			randnames = random.choices(NAMES_LIST, k=len(self.players))
+			randnames = random.choices(NAMES_LIST, k=4)
 			self.sid_maped_with_players[sid] = Game_Player(sid, randnames)
 			return ['success', randnames, len(self.players)-1]
 
@@ -122,7 +122,7 @@ class Hearts_Table():
 			searches for actual state and updates and/or send a message
 			'''
 			logger.debug('{} - {}'.format(mtype, self.state))
-			ALL_ACK=1
+			#ALL_ACK=1
 			if self.ack == ALL_ACK:
 				self.ack = 0
 
@@ -132,7 +132,7 @@ class Hearts_Table():
 					self.state = STATE_NEW_ROUND
 					self.new_round()
 					message = {'type': 'ROUND_UPDATE', 'round': self.round_num}
-					return message,True
+					return message ,'broadcast'
 
 				if self.state == STATE_NEW_ROUND:
 					# sent before: ROUND_UPDATE
@@ -144,18 +144,13 @@ class Hearts_Table():
 					self.players_decrypt()
 
 					self.state = STATE_PASS
-
-					if (self.trick_num % 4) != 0: # don't pass every fourth hand
-						message = {'type': 'PASS_CARD_REQUEST'}
-						#self._send(message, sid)
-					else:
+					# Dont pass every fourth hand
+					if not (self.trick_num % 4) != 0:
 						self.players_make_commitments()
 						self.save_bit_commitments()
 						self.distribute_bit_commitments()
 						self.players_process_commitments_signatures()
 						self.state = STATE_COMMITMENT
-
-						#self._send(message)
 
 				elif self.state == STATE_PASS:
 					# sent before: DISTRIBUTE_PASSED_CARDS
@@ -164,15 +159,14 @@ class Hearts_Table():
 					self.distribute_bit_commitments()
 					self.players_process_commitments_signatures()
 						
-					self.state = STATE_COMMITMENT
-
+					self.state = STATE_GAME
+				''''
 				elif self.state == STATE_COMMITMENT:
 					# sent before: DISTRIBUTE_BIT_COMMITMENTS
-					
 					self.state = STATE_GAME
 					message = {'type': 'STARTER_REQUEST'}
-					#self._send(message)
-
+					return message, 'broadcast'
+				''''
 				elif self.state == STATE_GAME:
 					#send before: TRICK_UPDATE
 
@@ -181,7 +175,7 @@ class Hearts_Table():
 						logger.info('Playing trick number: {}'.format(self.trick_num))
 						message = {'type': 'PLAY_CARD_REQUEST'}
 						sid = self.players[self.trick_winner]
-						#self._send(message, sid)
+						return message,sid
 
 					# NEXT: REVEAL COMMITMENTS
 					else:
@@ -231,7 +225,7 @@ class Hearts_Table():
 					# END		
 
 			else:
-				return {'data':'WAITING FOR PLAYERS'}
+				return {'data':'WAITING FOR PLAYERS'},False
 
 
 		elif mtype == 'PASS_CARD_RESPONSE':
@@ -266,7 +260,6 @@ class Hearts_Table():
 					#self._send(message, sid)
 
 			return
-
 
 		elif mtype == 'SIGNATURE_FAILED':
 			logger.debug('SIGNATURE_FAILED')
@@ -356,7 +349,7 @@ class Hearts_Table():
 		else:
 			logger.warning("Invalid message type: {}".format(message['type']))
 			ret = False
-
+		''''
 		if not ret:
 			try:
 				self._send({'type': 'ERROR', 'message': 'Check server'})
@@ -367,6 +360,7 @@ class Hearts_Table():
 
 			self.state = STATE_CLOSE
 			#self.transport.close()
+		''''
 
 	def players_shuffle(self):
 		# every player shuffles (and encrypts) the deck
@@ -378,7 +372,8 @@ class Hearts_Table():
 		# distributes cards
 		while self.deck.size() > 0:
 			for sid in self.sid_maped_with_players.keys():
-				if not self.sid_maped_with_players[sid].process_pick_or_pass_response(self.deck):
+				newdeck = self.sid_maped_with_players[sid].process_pick_or_pass_response(self.deck)
+				if not newdeck:
 					break
 
 	def players_decrypt(self):
@@ -398,7 +393,7 @@ class Hearts_Table():
 		for i, sid1 in enumerate(self.sid_maped_with_players.keys()):
 			for j, sid2 in enumerate(self.sid_maped_with_players.keys()):
 				if sid2 != sid1:														# pass the right name
-					self.sid_maped_with_players[sid1].player.crypto.other_bit_commitments[self.self.sid_maped_with_players[sid2].name] = self.sid_maped_with_players[sid2].crypto.bit_commitment
+					self.sid_maped_with_players[sid1].player.crypto.other_bit_commitments[self.sid_maped_with_players[sid2].player.name] = self.sid_maped_with_players[sid2].player.crypto.bit_commitment
 
 	def players_process_commitments_signatures(self):
 		for sid in self.sid_maped_with_players.keys():
@@ -552,21 +547,3 @@ class Hearts_Table():
 			return True, pass_to
 
 		return False, None
-
-'''
-	def process_close(self, message: str) -> bool:
-		"""
-		Processes a CLOSE message from the client.
-		This message will trigger the termination of this session
-
-		:param message: The message to process
-		:return: Boolean indicating the success of the operation
-		"""
-		logger.debug("Process Close: {}".format(message))
-		self.transport.close()
-
-		self.state = STATE_CLOSE
-		#logger.info("Closed")
-
-		return True
-'''
