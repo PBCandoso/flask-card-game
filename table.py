@@ -150,7 +150,7 @@ class Hearts_Table():
 						self.save_bit_commitments()
 						self.distribute_bit_commitments()
 						self.players_process_commitments_signatures()
-						self.state = STATE_COMMITMENT
+						self.state = STATE_GAME
 
 				elif self.state == STATE_PASS:
 					# sent before: DISTRIBUTE_PASSED_CARDS
@@ -160,18 +160,26 @@ class Hearts_Table():
 					self.players_process_commitments_signatures()
 						
 					self.state = STATE_GAME
-				''''
-				elif self.state == STATE_COMMITMENT:
-					# sent before: DISTRIBUTE_BIT_COMMITMENTS
-					self.state = STATE_GAME
-					message = {'type': 'STARTER_REQUEST'}
-					return message, 'broadcast'
-				''''
+
 				elif self.state == STATE_GAME:
+					# First trick
+					if self.trick_num == 0:
+						sid = self.get_starter()
+						self.current_trick = Trick()
+						self.trick_num += 1
+						logger.info('Playing trick number: {}'.format(self.trick_num))
+
+						#self.trick_winner = self.players.index(sid)
+
+						message = {'type':'PLAY_CARD_REQUEST', 'parameters':{'card': '2c'}}
+						#self._send(message, sid)
+						break
+
+
 					#send before: TRICK_UPDATE
 
 					# NEXT: NEW TRICK
-					if self.trick_num < TOTAL_TRICKS:
+					elif self.trick_num < TOTAL_TRICKS:
 						logger.info('Playing trick number: {}'.format(self.trick_num))
 						message = {'type': 'PLAY_CARD_REQUEST'}
 						sid = self.players[self.trick_winner]
@@ -266,21 +274,6 @@ class Hearts_Table():
 
 			return
 
-		elif mtype == 'STARTER_RESPONSE':
-			logger.debug('STARTER_RESPONSE')
-			if message['parameters']['value']:
-				self.current_trick = Trick()
-				self.trick_num += 1
-				logger.info('Playing trick number: {}'.format(self.trick_num))
-
-				#sender_sid = sid
-				#self.trick_winner = self.players.index(sender_sid)
-
-				message = {'type':'PLAY_CARD_REQUEST', 'parameters':{'card': '2c'}}
-				sid = self.get_current_player_sid()
-				#self._send(message, sid)
-			return
-
 		elif mtype == 'PLAY_CARD_RESPONSE':
 			logger.debug('PLAY_CARD_RESPONSE')
 			play_card = message['parameters']['card']
@@ -349,7 +342,7 @@ class Hearts_Table():
 		else:
 			logger.warning("Invalid message type: {}".format(message['type']))
 			ret = False
-		''''
+		'''
 		if not ret:
 			try:
 				self._send({'type': 'ERROR', 'message': 'Check server'})
@@ -360,7 +353,7 @@ class Hearts_Table():
 
 			self.state = STATE_CLOSE
 			#self.transport.close()
-		''''
+		'''
 
 	def players_shuffle(self):
 		# every player shuffles (and encrypts) the deck
@@ -413,6 +406,11 @@ class Hearts_Table():
 	def players_process_commitments_reveal(self):
 		for sid in self.sid_maped_with_players.keys():
 			self.sid_maped_with_players[sid].process_commitment_reveals()
+
+	def get_starter(self):
+		for sid in self.sid_maped_with_players
+			if sid.check_starter_request():
+				return sid
 
 	def get_winner(self):
 		min_score = 1000 # impossibly high

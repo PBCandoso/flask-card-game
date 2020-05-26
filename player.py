@@ -99,14 +99,6 @@ class Game_Player():
 			self.process_bit_commitments()
 			return
 
-		elif mtype == 'STARTER_REQUEST':
-			logger.debug('STARTER_REQUEST')
-			flag=self.check_starter_request()
-
-			message = {'type': 'STARTER_RESPONSE', 'parameters':{'value': flag}}
-			#self._send(message)
-			return
-
 		elif mtype == 'PLAY_CARD_REQUEST' or mtype == 'PLAY_CARD_REQUEST_ERROR':
 			logger.debug('PLAY_CARD_REQUEST')
 			play_card = self.process_play_card_request()
