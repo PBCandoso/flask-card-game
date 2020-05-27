@@ -151,7 +151,7 @@ class Suit:
 		elif iden <= 3:
 			self.__string = suits[iden]
 		else:
-			raise Exception('Suit out of bond: Suit index must be between 0 and 3.')
+			raise Exception('Suit out of bound: Suit index must be between 0 and 3.')
 
 	def __eq__(self, other):
 		return self.iden == other.iden
@@ -221,7 +221,6 @@ class Rank13(Rank):
 		else:
 			raise Exception('Rank out of bond: Rank index must be between 2 and 14')
 
-
 class Rank10(Rank):
 	def __init__(self, rank):
 		super().__init__(rank)
@@ -239,7 +238,6 @@ class Rank10(Rank):
 			self._string = strings[rank - 7]
 		else:
 			raise Exception('Rank out of bond: Rank index must be between 2 and 11')
-
 
 class Hand:
 	def __init__(self, n):
@@ -489,8 +487,8 @@ class Trick:
 				self.points += 13
 
 			if card.suit == self.suit:
-				if card.rank.value > self.highest:
-					self.highest = card.rank.value
+				if card.rank.__value > self.highest:
+					self.highest = card.rank.__value
 					self.winner = index
 					print("Highest: {}".format(self.highest))
 
@@ -521,7 +519,6 @@ class Trick:
 				self.winner = index
 					
 			print("Highest: {}".format(self.highest))
-
 
 class Player:
 	def __init__(self, name, game="Hearts", auto=False):

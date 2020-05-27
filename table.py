@@ -1,4 +1,4 @@
-from card_game import Deck, Card, Trick
+from card_game import Deck, Card, Trick,Rank, Suit
 from utils import Crypto
 from player import Game_Player
 import asyncio
@@ -288,8 +288,13 @@ class Hearts_Table():
 
 		elif mtype == 'PLAY_CARD_RESPONSE':
 			logger.debug('PLAY_CARD_RESPONSE')
-			play_card = message['parameters']['card']
+			msgcard = message['parameters']['card']
+			play_card = self.map_to_card(msgcard)
 			sid = self.get_current_player_sid()
+
+			if not sid == sender_id:
+				# not their turn
+				return {'type': 'WAIT_TURN'},'reply'
 
 			if not self.eval_card_played(play_card):
 				# card not accepted; repeats request
@@ -466,10 +471,16 @@ class Hearts_Table():
 		logger.info('Round: {}'.format(self.round_num))
 
 	def get_current_player_index(self):
-		return (self.trick_winner + self.shift) % len(self.players)
+		winner = [e for e,w in enumerate(self.players) if w == self.trick_winner][0]
+		return (winner + self.shift) % len(self.players)
 
 	def get_current_player_sid(self):
 		return self.players[self.get_current_player_index()]
+
+	def map_to_card(self,map):
+		# Create card from str
+		suits = ["c", "d", "s", "h"]
+		return Card(Rank(map['rank']),Suit(suits.index(map['suit'])))
 
 	def evaluate_trick(self):
 		self.trick_winner = self.current_trick.winner
