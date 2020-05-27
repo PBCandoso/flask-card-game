@@ -477,10 +477,11 @@ class Hearts_Table():
 	def get_current_player_sid(self):
 		return self.players[self.get_current_player_index()]
 
-	def map_to_card(self,map):
+	def map_to_card(self, map):
 		# Create card from str
 		suits = ["c", "d", "s", "h"]
-		return Card(Rank(map['rank']),Suit(suits.index(map['suit'])))
+		ranks = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"]
+		return Card(Rank(ranks.index(map['rank'])),Suit(suits.index(map['suit'])))
 
 	def evaluate_trick(self):
 		self.trick_winner = self.current_trick.winner
