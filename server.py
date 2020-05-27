@@ -23,7 +23,7 @@ rooms={"1":Hearts_Table(),"2": Hearts_Table()}
 
 leaderboard={"1111111":1, "12345678":2,"87654321":3,"23145546":4}
 
-users={"252811518": User("252811518",2,None), "123456": User("123456",1,None)}
+users={"252811518": User("252811518",2,None), "224241540": User("224241540",1,None)}
 
 
 def token_required(f):
