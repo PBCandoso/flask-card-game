@@ -1,4 +1,4 @@
-from card_game import Deck, Card, Trick,Rank, Suit
+from card_game import Deck, Card, Trick, Rank13, Suit
 from utils import Crypto
 from player import Game_Player
 import asyncio
@@ -312,7 +312,7 @@ class Hearts_Table():
 				self.shift += 1
 				next_sid = self.get_current_player_sid()
 
-				if len(self.current_trick) != 4:
+				if self.current_trick.cardsInTrick != 4:
 					message = {'type':'PLAY_CARD_REQUEST'}
 					#self._send(message, next_sid)
 
@@ -480,8 +480,8 @@ class Hearts_Table():
 	def map_to_card(self, map):
 		# Create card from str
 		suits = ["c", "d", "s", "h"]
-		ranks = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"]
-		return Card(Rank(ranks.index(map['rank'])),Suit(suits.index(map['suit'])))
+		ranks = [-1, -1, "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"]
+		return Card(Rank13(ranks.index(map['rank'])),Suit(suits.index(map['suit'])))
 
 	def evaluate_trick(self):
 		self.trick_winner = self.current_trick.winner

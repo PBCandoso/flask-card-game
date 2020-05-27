@@ -486,11 +486,9 @@ class Trick:
 			elif card == Card(Rank13(QUEEN), Suit(SPADES)):
 				self.points += 13
 
-			if card.suit == self.suit:
-				if card.rank.__value > self.highest:
-					self.highest = card.rank.__value
-					self.winner = index
-					print("Highest: {}".format(self.highest))
+			if self.cardsInTrick == 1 or card.eval(self.highest) == card:
+				self.highest = card.rank.value
+				self.winner = index
 
 		elif self.game == "Sueca":
 			ACE = 11
@@ -514,11 +512,11 @@ class Trick:
 				# Each Queen - 2 points
 				self.points += 2
 
-			if card.eval(self.highest) == card:
+			if self.cardsInTrick == 1 or card.eval(self.highest) == card:
 				self.highest = card
 				self.winner = index
 					
-			print("Highest: {}".format(self.highest))
+		print("Highest: {}".format(self.highest))
 
 class Player:
 	def __init__(self, name, game="Hearts", auto=False):
