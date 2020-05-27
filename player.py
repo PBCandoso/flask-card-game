@@ -180,11 +180,11 @@ class Game_Player():
 	def save_bit_commitments(self, bit_commit_dic):
 		for name, bit_commit in bit_commit_dic:
 			if name != self.player.name:
-				self.player.crypto.players_bit_commitments[name] = bit_commit
+				self.player.crypto.other_bit_commitments[name] = bit_commit
 	
 	def process_bit_commitments(self):
 		names = []
-		for name, bit_commit in self.player.crypto.players_bit_commitments:
+		for name, bit_commit in self.player.crypto.other_bit_commitments.items():
 			if self.player.verify_bit_commitment_signature(bit_commit):
 				names.append(name)
 
@@ -214,7 +214,7 @@ class Game_Player():
 	def process_commitment_reveals(self):
 		names = []
 		for name, commit_reveal in self.player.crypto.other_commitments_reveal:
-			if self.player.verify_commitment(commit_reveal):
+			if self.player.verify_commitment(self.player.crypto.other_bit_commitments[name], commit_reveal):
 				names.append(name)
 		logger.warning('MISMATCH_ERROR: {}'.format(names))
 		message = {'type': 'OK'} if len(names)==0 else {'type': 'MISMATCH_ERROR', 'parameters':{'players': names}}

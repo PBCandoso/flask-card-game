@@ -26,6 +26,7 @@ STATE_VERIFY = 8
 STATE_RESULTS = 9
 STATE_END = 10
 STATE_CLOSE = 11
+STATE_CARDS = 12
 ALL_ACK = 4
 
 '''
@@ -135,8 +136,8 @@ class Hearts_Table():
 					return message ,'broadcast'
 
 				if self.state == STATE_NEW_ROUND:
+					print("NEW ROUND")
 					# sent before: ROUND_UPDATE
-					#message = {'type': 'SHUFFLE_REQUEST', 'parameters':{'deck': self.deck.as_list()}}
 					sid = random.choices(self.players)
 
 					self.players_shuffle()
@@ -145,23 +146,34 @@ class Hearts_Table():
 
 					self.state = STATE_PASS
 					# Dont pass every fourth hand
-					if not (self.trick_num % 4) != 0:
+					if (self.round_num % 4) == 0:
 						self.players_make_commitments()
 						self.save_bit_commitments()
 						self.distribute_bit_commitments()
 						self.players_process_commitments_signatures()
 						self.state = STATE_GAME
+					
+					return {'type':'ACK'},'broadcast'
 
 				elif self.state == STATE_PASS:
+					print("PASS")
 					# sent before: DISTRIBUTE_PASSED_CARDS
 					self.players_make_commitments()
 					self.save_bit_commitments()
 					self.distribute_bit_commitments()
-					self.players_process_commitments_signatures()
-						
+					self.players_process_commitments_signatures()		
+					self.state = STATE_CARDS
+					
+					return {'type':'ACK'},'broadcast'
+				
+				elif self.state == STATE_CARDS:
+					print("CARDS")
 					self.state = STATE_GAME
+					message = {'type': 'GET_CARDS'}
+					return message,'broadcast'
 
 				elif self.state == STATE_GAME:
+					print("GAME")
 					# First trick
 					if self.trick_num == 0:
 						sid = self.get_starter()
@@ -169,24 +181,25 @@ class Hearts_Table():
 						self.trick_num += 1
 						logger.info('Playing trick number: {}'.format(self.trick_num))
 
-						#self.trick_winner = self.players.index(sid)
+						self.trick_winner = sid
 
 						message = {'type':'PLAY_CARD_REQUEST', 'parameters':{'card': '2c'}}
-						#self._send(message, sid)
-						break
+						return message, sid
 
 
 					#send before: TRICK_UPDATE
 
 					# NEXT: NEW TRICK
 					elif self.trick_num < TOTAL_TRICKS:
+						print("NEW TRICK")
 						logger.info('Playing trick number: {}'.format(self.trick_num))
 						message = {'type': 'PLAY_CARD_REQUEST'}
-						sid = self.players[self.trick_winner]
+						sid = self.sid_maped_with_players.get(self.trick_winner)
 						return message,sid
 
 					# NEXT: REVEAL COMMITMENTS
 					else:
+						print("REVEAL")
 						self.save_commitment_reveals()
 						self.distribute_commitments_reveal()
 						self.players_process_commitments_reveal()
@@ -219,7 +232,6 @@ class Hearts_Table():
 					message = {'type': 'DISPLAY_WINNER', 'parameters':{'winner': winner}}
 					#self._send(message)
 
-
 				elif self.state == STATE_END:
 					# sent before: DISPLAY_WINNER
 					
@@ -233,7 +245,7 @@ class Hearts_Table():
 					# END		
 
 			else:
-				return {'data':'WAITING FOR PLAYERS'},False
+				return {'data':'WAITING FOR PLAYERS'},'reply'
 
 
 		elif mtype == 'PASS_CARD_RESPONSE':
@@ -308,7 +320,6 @@ class Hearts_Table():
 					#self._send(message)
 			return
 
-
 		elif mtype == 'MISMATCH_ERROR':
 			logger.debug('MISMATCH_ERROR')
 			#sender_sid = sid
@@ -339,21 +350,13 @@ class Hearts_Table():
 			#self._send(message, sender_sid)
 			return
 
+		elif mtype == 'CARDS_REQUEST':
+			hand = self.sid_maped_with_players[sender_id].player.hand
+			message = {'type':'CARDS_RESPONSE','cards': hand.as_list()}
+			return message,'reply'
+
 		else:
 			logger.warning("Invalid message type: {}".format(message['type']))
-			ret = False
-		'''
-		if not ret:
-			try:
-				self._send({'type': 'ERROR', 'message': 'Check server'})
-			except:
-				pass # Silently ignore
-
-			logger.info("Closing transport")
-
-			self.state = STATE_CLOSE
-			#self.transport.close()
-		'''
 
 	def players_shuffle(self):
 		# every player shuffles (and encrypts) the deck
@@ -408,8 +411,8 @@ class Hearts_Table():
 			self.sid_maped_with_players[sid].process_commitment_reveals()
 
 	def get_starter(self):
-		for sid in self.sid_maped_with_players
-			if sid.check_starter_request():
+		for sid,player in self.sid_maped_with_players.items():
+			if player.check_starter_request():
 				return sid
 
 	def get_winner(self):

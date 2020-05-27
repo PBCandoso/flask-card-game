@@ -92,8 +92,6 @@ class DeckIterator:
 		# End of Iteration
 		raise StopIteration
 
-
-
 class Card:
 	def __init__(self, rank, suit):
 		self.rank = rank
@@ -302,8 +300,6 @@ class Hand:
 
 		return suit[index]
 
-
-
 	def strToCard(self, card):
 		if len(card) == 0: return None
 		
@@ -404,13 +400,19 @@ class Hand:
 	def hasOnlyHearts(self):
 		return self.hasOnlySuit(HEARTS)
 
-
 	def __str__(self):
 		handStr = ''
 		for suit in self.value:
 			for card in suit:
 				handStr += card.__str__() + ' '
 		return handStr
+
+	def as_list(self):
+		lst = []
+		for suit in self.value:
+			for card in suit:
+				lst.append({'rank':card.rank.__str__(),'suit': card.suit.__str__()})
+		return lst
 
 class Encrypted_Hand:
 	def __init__(self, n):
@@ -643,7 +645,6 @@ class Player:
 			card = self.getInput(option)
 
 		return self.hand.playCard(card) 
-
 
 	def trickWon(self, trick):
 		self.tricksWon.append(trick.trick)

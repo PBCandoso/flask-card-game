@@ -134,12 +134,14 @@ def msg(message):
     room = message['room']
     game = rooms[room]
     (tosend,broadcast) = game.on_frame(request.sid,message['data'])
+    print("Server: ",tosend,"Broadcast: ",broadcast)
     if broadcast == 'broadcast':
         emit('hearts-message',tosend,broadcast=True)
     elif broadcast == 'reply':
         emit('hearts-message',tosend)
     else:
-        emit('hearts-message',room=broadcast)
+        emit('hearts-message',tosend,room=broadcast) 
+
 
 if __name__ == '__main__':
     socketio.run(app)
