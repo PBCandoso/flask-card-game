@@ -146,6 +146,7 @@ class Hearts_Table():
 
 					self.state = STATE_PASS
 					# Dont pass every fourth hand
+					print(self.round_num)
 					if (self.round_num % 4) == 0:
 						self.players_make_commitments()
 						self.save_bit_commitments()
@@ -188,10 +189,18 @@ class Hearts_Table():
 
 
 					#send before: TRICK_UPDATE
+					# NEXT: COMPLETE THE TRICK
+					elif self.current_trick.cardsInTrick < 4:
+						self.shift += 1
+						next_sid = self.get_current_player_sid()
+						message = {'type':'PLAY_CARD_REQUEST'}
+
+						return message,next_sid
 
 					# NEXT: NEW TRICK
 					elif self.trick_num < TOTAL_TRICKS:
 						print("NEW TRICK")
+						self.shift = 0
 						logger.info('Playing trick number: {}'.format(self.trick_num))
 						message = {'type': 'PLAY_CARD_REQUEST'}
 						sid = self.sid_maped_with_players.get(self.trick_winner)
@@ -309,20 +318,19 @@ class Hearts_Table():
 				# card accepted; advances
 				self.current_trick.addCard(play_card, self.get_current_player_index())
 				logger.debug('Current table: {}'.format(self.current_trick))
-				self.shift += 1
-				next_sid = self.get_current_player_sid()
-
-				if self.current_trick.cardsInTrick != 4:
-					message = {'type':'PLAY_CARD_REQUEST'}
-					#self._send(message, next_sid)
-
+				
+				# NEXT: TRICK UPDATE
+				if self.current_trick.cardsInTrick < 4:
+					trick_winner = None
 				else:
-					# NEXT: TRICK UPDATE
 					self.evaluate_trick()
-					self.shift = 0
-					message = {'type': 'TRICK_UPDATE', 'parameters':{'trick_number': self.trick_num, 'current_trick': self.current_trick, 'trick_winner': self.trick_winner}}
+					trick_winner = self.trick_winner 
+				
+				message = {'type': 'TRICK_UPDATE', 'parameters':{'trick_number': self.trick_num, 'current_trick': self.current_trick, 'trick_winner': trick_winner}}
+
+				if trick_winner is not None:
 					self.scores[self.trick_winner] += self.current_trick.points
-					#self._send(message)
+				#self._send(message)
 			return
 
 		elif mtype == 'MISMATCH_ERROR':

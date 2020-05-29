@@ -85,6 +85,7 @@ class Game_Player():
 		elif mtype == 'DISTRIBUTE_PASSED_CARDS':
 			logger.debug('DISTRIBUTE_PASSED_CARDS')
 			cards = message['parameters']['cards']
+			# DAR HIGHLIGHT ÀS CARTAS RECEBIDAS
 			for card in cards:
 				self.player.addCard(card)
 			message = {'type': 'OK'}
