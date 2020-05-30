@@ -1,4 +1,4 @@
-from flask import Flask, render_template,request,jsonify
+from flask import Flask, render_template,request,jsonify,g
 from flask_socketio import SocketIO,send,emit,join_room,leave_room
 from flask_cors import CORS, cross_origin
 from flask_jwt import JWT, jwt_required, current_identity
@@ -11,6 +11,8 @@ import json
 from random import randint,choice
 import string
 from functools import wraps
+from db import Sqlite
+import sqlite3
 
 app = Flask(__name__)
 app.config['JWT_SECRET_KEY'] = 'super-secret'
@@ -19,12 +21,13 @@ socketio = SocketIO(app,cors_allowed_origins="*")
 
 crypto = Crypto()
 
+database = Sqlite()
+
 rooms={"1":Hearts_Table(),"2": Hearts_Table()}
 
 leaderboard={"1111111":1, "12345678":2,"87654321":3,"23145546":4}
 
 users={"252811518": User("252811518",2,None), "224241540": User("224241540",1,None)}
-
 
 def token_required(f):
 	@wraps(f)
@@ -71,7 +74,6 @@ def decode_token():
 	except:
 		return 'Could not generate token',500
  
-
 @app.route('/testtoken', methods=['GET'])
 def ttoken():
 	token = crypto.generate_token({'nif':'123456'})
@@ -88,13 +90,14 @@ def getUser():
 		return json.dumps(user.__dict__),200
 	return "No user found",500
 
+@app.route("/leaderboards", methods=['GET'])
+def leaderboards():
+    all = database.leaderboards()
+    return jsonify(all),200
+
 @socketio.on('connect')
 def connect():
     print("Client connected")
-
-@socketio.on('leaderboards')
-def leaderboards(message):
-	emit('leaderboards',leaderboard)
 
 @socketio.on('join-room')
 def joinRoom(message):
