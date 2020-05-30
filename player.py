@@ -17,6 +17,8 @@ STATE_NEW_ROUND = 2
 STATE_GAME = 3
 STATE_CLOSE = 4
 
+CARDS_TO_PASS = 3
+
 class Game_Player():
 	def __init__(self,sid,names):
 		self.player = Player(names[0])
@@ -75,10 +77,12 @@ class Game_Player():
 
 		elif mtype == 'PASS_CARD_REQUEST' or mtype == 'PASS_CARD_REQUEST_ERROR':
 			logger.debug('PASS_CARD_REQUEST')
-			pass_card = self.process_pass_card_request()
-			if pass_card is not None:
-				self.player.removeCard(pass_card)
-			message = {'type':'PASS_CARD_RESPONSE', 'parameters':{'card': pass_card}}
+			pass_cards = []
+			for e in range(CARDS_TO_PASS):
+				pass_card = self.process_pass_card_request()
+				pass_cards.append(pass_card)
+
+			message = {'type':'PASS_CARD_RESPONSE', 'parameters':{'cards': pass_cards}}
 			#self._send(message)
 			return
 
@@ -199,7 +203,10 @@ class Game_Player():
 				names.append(name)
 
 	def process_pass_card_request(self):
-		return self.player.play(option='pass')
+		card = self.player.play(option='pass')
+
+		self.player.removeCard(card)
+		return card
 
 	def check_starter_request(self):
 		return self.player.hand.contains2ofclubs

@@ -138,7 +138,7 @@ class Hearts_Table():
 				if self.state == STATE_NEW_ROUND:
 					print("NEW ROUND")
 					# sent before: ROUND_UPDATE
-					sid = random.choices(self.players)
+					sid = random.choices(self.players)[0]
 
 					self.players_shuffle()
 					self.players_card_distribution()
@@ -263,11 +263,19 @@ class Hearts_Table():
 
 		elif mtype == 'PASS_CARD_RESPONSE':
 			logger.debug('PASS_CARD_RESPONSE')
-			pass_card = message['parameters']['card']
+			pass_cards = message['parameters']['cards']
+			card1, card2, card3 = pass_card[:]
+			pass_cards = []
+			pass_cards.extend(self.map_to_card(card1), self.map_to_card(card2), self.map_to_card(card3))
+
 			sender_sid = sid
 			sender_index = self.players.index(sender_sid)
 			self.to_be_passed.pop(sender_index)
-			flag, pass_to = self.pass_card(index=sender_index, pass_card=pass_card)
+
+			for i in range(CARDS_TO_PASS):
+				flag, pass_to = self.pass_card(index=sender_index, pass_card=pass_cards[i])
+				if not flag:
+					break
 
 			if not flag:
 				# card not accepted; repeats request
@@ -278,13 +286,8 @@ class Hearts_Table():
 				# card accepted; advances
 				logger.debug('Passing cards: {}'.format(self.passing_cards))
 
-				# NEXT: ANOTHER CARD TO PASS
-				if len(self.passing_cards[pass_to]) < CARDS_TO_PASS:
-					message = {'type':'PASS_CARD_REQUEST'}
-					return message, sender_sid
-
 				# NEXT: DISTRIBUTE_PASSED_CARDS
-				elif list(set([len(n) for n in self.passing_cards]))[0] == CARDS_TO_PASS:
+				if list(set([len(n) for n in self.passing_cards]))[0] == CARDS_TO_PASS:
 					self.distribute_passed_cards()
 
 				# NEXT: CARD TO PASS - NEW PLAYER
