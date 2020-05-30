@@ -109,12 +109,21 @@ class Game_Player():
 			#self._send(message)
 			return
 
+		elif mtype == 'CARD_PLAYED':
+			logger.debug('CARD_PLAYED')
+			player = message['parameters']['player']
+			card = message['parameters']['card']
+			logger.info('{} played {}'.format(player, card))
+			message = {'type': 'OK'}
+			return
+
 		elif mtype == 'TRICK_UPDATE':
 			logger.debug('TRICK_UPDATE')
 			trick = message['parameters']['current_trick']
 			self.trick_number = message['parameters']['trick_number']
 			winner = message['parameters']['trick_winner']
 			#if winner == self.sid:
+			#	SAVE TRICKS WON
 			#	self.player.trickWon(trick)
 			logger.info(trick)
 			message = {'type': 'OK'}

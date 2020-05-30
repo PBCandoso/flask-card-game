@@ -322,14 +322,12 @@ class Hearts_Table():
 				# NEXT: TRICK UPDATE
 				if self.current_trick.cardsInTrick < 4:
 					trick_winner = None
+					message = {'type': 'CARD_PLAYED', 'parameters':{'player':sid, 'card':play_card}}
 				else:
 					self.evaluate_trick()
-					trick_winner = self.trick_winner 
-				
-				message = {'type': 'TRICK_UPDATE', 'parameters':{'trick_number': self.trick_num, 'current_trick': self.current_trick, 'trick_winner': trick_winner}}
-
-				if trick_winner is not None:
 					self.scores[self.trick_winner] += self.current_trick.points
+					message = {'type': 'TRICK_UPDATE', 'parameters':{'trick_number': self.trick_num, 'current_trick': self.current_trick, 'trick_winner': self.trick_winner}}
+					
 				#self._send(message)
 			return
 
