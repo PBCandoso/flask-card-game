@@ -147,7 +147,10 @@ class Hearts_Table():
 					self.state = STATE_PASS
 					# Dont pass every fourth hand
 					print(self.round_num)
-					if (self.round_num % 4) == 0:
+					if (self.round_num % 4) != 0:
+						message = {'type':'PASS_CARD_REQUEST'}
+					else:
+						print('NOT PASSING CARDS')
 						self.players_make_commitments()
 						self.save_bit_commitments()
 						self.distribute_bit_commitments()

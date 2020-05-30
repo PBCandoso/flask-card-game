@@ -628,7 +628,6 @@ class Player:
 			card = c
 
 		elif self.autoplay or auto:
-
 			if suit is None:
 				return self.hand.getRandomCard()
 			return self.hand.getRandomCard(suit)
