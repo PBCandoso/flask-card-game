@@ -182,7 +182,7 @@ class Hearts_Table():
 						self.trick_num += 1
 						logger.info('Playing trick number: {}'.format(self.trick_num))
 
-						self.trick_winner = sid
+						self.trick_winner = [e for e,v in enumerate(self.players) if v == sid][0]
 
 						message = {'type':'PLAY_CARD_REQUEST', 'parameters':{'card': '2c'}}
 						return message, sid
@@ -321,15 +321,16 @@ class Hearts_Table():
 				# NEXT: TRICK UPDATE
 				if self.current_trick.cardsInTrick < 4:
 					trick_winner = None
+					message = {'type': 'CARD_PLAYED', 'parameters':{'player':sid, 'card':{'rank': play_card.rank.__str__(), 'suit': play_card.suit.__str__()}}}
 				else:
 					self.evaluate_trick()
-					trick_winner = self.trick_winner 
-				
-				message = {'type': 'TRICK_UPDATE', 'parameters':{'trick_number': self.trick_num, 'current_trick': self.current_trick, 'trick_winner': trick_winner}}
-				if trick_winner is not None:
-					self.scores[self.trick_winner] += self.current_trick.points
-				playerind = [p for p in self.players if p == sender_id][0]
-				message = {'type': 'CARD_PLAYED', 'parameters':{'card': msgcard, 'player': playerind}}
+					if self.trick_winner in self.scores:
+						self.scores[self.trick_winner] += self.current_trick.points
+					else:
+						self.scores[self.trick_winner] = self.current_trick.points
+					
+					message = {'type': 'TRICK_UPDATE', 'parameters':{'trick_number': self.trick_num, 'trick_winner': self.trick_winner}}
+					
 				return message,'broadcast'
 
 		elif mtype == 'MISMATCH_ERROR':
@@ -478,7 +479,7 @@ class Hearts_Table():
 		logger.info('Round: {}'.format(self.round_num))
 
 	def get_current_player_index(self):
-		winner = [e for e,w in enumerate(self.players) if w == self.trick_winner][0]
+		winner = [e for e,w in enumerate(self.players) if e == self.trick_winner][0]
 		return (winner + self.shift) % len(self.players)
 
 	def get_current_player_sid(self):

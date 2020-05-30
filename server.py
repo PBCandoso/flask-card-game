@@ -112,7 +112,7 @@ def joinRoom(message):
             # status = status, names = player names , players = number fo players
             emit('join-room',{'id':message, 'status': join[0], 'players': join[1]})
             # broadcast player join
-            emit('join-room',{'id':message, 'status': 'opponent', 'opid':request.sid},broadcast=True,include_self=False)
+            emit('join-room',{'id':message, 'status': 'opponent', 'opid':request.sid},room=message,include_self=False)
         else:
             emit('join-room',{'id':message, 'status': join[0]})
 
@@ -135,7 +135,7 @@ def msg(message):
     (tosend,broadcast) = game.on_frame(request.sid,message['data'])
     print("Server: ",tosend,"Broadcast: ",broadcast)
     if broadcast == 'broadcast':
-        emit('hearts-message',tosend,broadcast=True)
+        emit('hearts-message',tosend,room=room)
     elif broadcast == 'reply':
         emit('hearts-message',tosend)
     else:

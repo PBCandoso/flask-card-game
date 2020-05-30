@@ -444,7 +444,7 @@ class Trick:
 		self.winner = UNDEFINED
 
 		if self.game == "Hearts":
-			self.highest = UNDEFINED # rank of the high trump suit card in trick
+			self.highest = Card(Rank13(UNDEFINED),self.suit) # rank of the high trump suit card in trick
 		elif self.game == "Sueca":
 			self.highest = Card(Rank10(UNDEFINED), self.suit) # rank and suit of the high trump suit card in trick
 
@@ -456,7 +456,7 @@ class Trick:
 		self.winner = UNDEFINED
 
 		if self.game == "Hearts":
-			self.highest = UNDEFINED # rank  of the higher suit card in trick
+			self.highest = Card(Rank13(UNDEFINED),self.suit) # rank  of the higher suit card in trick
 		elif self.game == "Sueca":
 			self.highest = Card(Rank10(UNDEFINED), self.suit) # rank and suit of the most valuable card in trick
 
@@ -510,7 +510,7 @@ class Trick:
 
 
 		if self.cardsInTrick == 1 or card.eval(self.highest) == card:
-			self.highest = card.rank.value if self.game=='Hearts' else card
+			self.highest = card
 			self.winner = index
 					
 		print("Highest: {}".format(self.highest))
