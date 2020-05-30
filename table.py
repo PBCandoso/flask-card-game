@@ -82,7 +82,6 @@ class Hearts_Table():
 		logger.info("Received: {}".format(received))
 
 	def join(self,sid):
-		print("Player in room: ",self.players)
 		if len(self.players) > 4:
 			return ['full']
 		else:
@@ -91,7 +90,8 @@ class Hearts_Table():
 			self.players.append(sid)
 			randnames = random.choices(NAMES_LIST, k=4)
 			self.sid_maped_with_players[sid] = Game_Player(sid, randnames)
-			return ['success', randnames, len(self.players)-1]
+			print("Player in room: ",self.players)
+			return ['success', self.players]
 
 	def on_frame(self, sid, frame):
 		"""
@@ -266,7 +266,7 @@ class Hearts_Table():
 			if not flag:
 				# card not accepted; repeats request
 				message = {'type':'PASS_CARD_REQUEST_ERROR'}
-				#self._send(sid)
+				return message,'reply'
 
 			else:
 				# card accepted; advances
@@ -311,8 +311,7 @@ class Hearts_Table():
 					message = {'type':'PLAY_CARD_REQUEST_ERROR', 'parameters':{'card': '2c'}}
 				else:
 					message = {'type':'PLAY_CARD_REQUEST_ERROR'}
-				#self._send(message, sid)
-
+				return message,'reply'
 
 			else:
 				# card accepted; advances
@@ -327,11 +326,11 @@ class Hearts_Table():
 					trick_winner = self.trick_winner 
 				
 				message = {'type': 'TRICK_UPDATE', 'parameters':{'trick_number': self.trick_num, 'current_trick': self.current_trick, 'trick_winner': trick_winner}}
-
 				if trick_winner is not None:
 					self.scores[self.trick_winner] += self.current_trick.points
-				#self._send(message)
-			return
+				playerind = [p for p in self.players if p == sender_id][0]
+				message = {'type': 'CARD_PLAYED', 'parameters':{'card': msgcard, 'player': playerind}}
+				return message,'broadcast'
 
 		elif mtype == 'MISMATCH_ERROR':
 			logger.debug('MISMATCH_ERROR')

@@ -110,10 +110,9 @@ def joinRoom(message):
         join = rooms[message].join(request.sid)
         if join[0] == 'success':
             # status = status, names = player names , players = number fo players
-            print(join[1])
-            emit('join-room',{'id':message, 'status': join[0], 'names': join[1], 'players': join[2]})
+            emit('join-room',{'id':message, 'status': join[0], 'players': join[1]})
             # broadcast player join
-            emit('join-room',{'id':message, 'status': 'opponent'},broadcast=True,include_self=False)
+            emit('join-room',{'id':message, 'status': 'opponent', 'opid':request.sid},broadcast=True,include_self=False)
         else:
             emit('join-room',{'id':message, 'status': join[0]})
 
@@ -122,7 +121,7 @@ def leaveRoom(message):
     try:
         # TODO rework
         for pl in rooms[message].players:
-            if pl.id == request.sid:
+            if pl == request.sid:
                 rooms[message].players.remove(pl)
     except:
         pass
