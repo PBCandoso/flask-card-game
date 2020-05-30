@@ -1,61 +1,31 @@
 import sqlite3
-#from card_game import * (have to change this in game_mode)
 from user import User
 
-class Sqlite():
+class Sqlite:
 
 
-	def  __init__(self):
-		self.conn = sqlite3.connect(':memory:')
+	def  __init__(self,path):
+		self.conn = sqlite3.connect(path)
 		self.conn.row_factory = self.dict_factory
 		self.c = self.conn.cursor()
-		self.c.execute("""CREATE TABLE tblGame (
-			'ID'	INTEGER NOT NULL PRIMARY KEY  UNIQUE
-		);""")
-
-		self.c.execute("""CREATE TABLE tblGameType (
-			'GameTypeID'	INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT UNIQUE,
-			'GameName'	TEXT
-		); """)
-		self.c.execute(""" CREATE TABLE User (
-			'NIF' INTEGER NOT NULL PRIMARY KEY  UNIQUE,
-			'RANK' INTEGER NOT NULL);
-			""")
-
-		self.c.execute("""CREATE TABLE tblScore (
-			'ScoreID'	INTEGER NOT NULL PRIMARY KEY UNIQUE,
-			'GameID'	INTEGER,
-			'UserID'	INTEGER ,
-			FOREIGN KEY (GameID) REFERENCES tblGame(ID),
-			FOREIGN KEY (UserID) REFERENCES User(NIF)
-			);""")
-
-		self.c.execute(""" CREATE TABLE "Users_games" (
-			"User_nif" integer PRIMARY KEY REFERENCES "User" ("NIF"),
-			"Game_id" integer REFERENCES "tblGame" ("ID")
-		);
-		""")
-		
-		self.c.execute("INSERT INTO User VALUES (:nif, :rank)",{'nif' : 22,'rank':2})
-		self.c.execute("INSERT INTO User VALUES (:nif, :rank)",{'nif' : 11,'rank':1})
 
 	def insert_games(self,id):
 		with self.conn:
 				self.c.execute('INSERT INTO tblGame VALUES (:id);',{'id':id})
 
-	def users_by_nif(self,NIF):
+	def user_by_nif(self,nif):
 		with self.conn:
-			self.c.execute('SELECT * FROM User WHERE NIF=NIF',{'NIF' : NIF})
-			return self.c.fetchone()
+			cur = self.conn.cursor().execute("SELECT * FROM User WHERE NIF={wnif}".format(wnif=nif))
+			res = cur.fetchone()
+			return User(res['nif'],res['rank'],res['token'])
 			
-	def insert_users(self,user):
+	def insert_user(self,user):
 		with self.conn:
-			self.c.execute("INSERT INTO User VALUES (:nif, :rank)",{'nif' : User.nif,'rank':User.rank})
+			self.c.execute("INSERT INTO User VALUES (:nif, :rank, :token)",{'nif' : user.nif,'rank':user.rank,'token':user.token})
 
-	def users_by_nif(self,NIF):
-		with conn:
-			self.c.execute('SELECT * FROM User WHERE NIF=NIF',{'NIF' : NIF})
-			return self.c.fetchone
+	def update_token(self,nif,token):
+		with self.conn:
+			self.conn.cursor().execute("UPDATE User SET TOKEN='{token}' WHERE NIF={wnif}".format(wnif=nif,token=token))
 
 	def users(self):
 		self.c.execute("SELECT * FROM User")

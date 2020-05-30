@@ -21,13 +21,21 @@ socketio = SocketIO(app,cors_allowed_origins="*")
 
 crypto = Crypto()
 
-database = Sqlite()
-
 rooms={"1":Hearts_Table(),"2": Hearts_Table()}
 
 leaderboard={"1111111":1, "12345678":2,"87654321":3,"23145546":4}
 
-users={"252811518": User("252811518",2,None), "224241540": User("224241540",1,None)}
+def get_db():
+	db = getattr(g, '_database', None)
+	if db is None:
+		db = g._database = Sqlite('database.db')
+	return db
+
+@app.teardown_appcontext
+def close_connection(exception):
+	db = getattr(g, '_database', None)
+	if db is not None:
+		db.conn.close()
 
 def token_required(f):
 	@wraps(f)
@@ -44,19 +52,19 @@ def token_required(f):
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+	return render_template('index.html')
 
 @app.route('/rooms', methods=['GET'])
 def room():
-    return jsonify(list(rooms.keys()))
+	return jsonify(list(rooms.keys()))
 
 @app.route('/room', methods=['POST'])
 def createRoom():
-    # TODO add option to POST with game type
-    randomId = ''.join([choice(string.ascii_letters 
-            + string.digits) for n in range(16)]) 
-    rooms[randomId] = Hearts()
-    return json.dumps({'success':True}), 201, {'ContentType':'application/json'}
+	# TODO add option to POST with game type
+	randomId = ''.join([choice(string.ascii_letters 
+			+ string.digits) for n in range(16)]) 
+	rooms[randomId] = Hearts()
+	return json.dumps({'success':True}), 201, {'ContentType':'application/json'}
 
 @app.route('/token', methods=['POST'])
 def decode_token():
@@ -64,19 +72,24 @@ def decode_token():
 	try:
 		token = crypto.decode_cmd_token(token_str)
 		jwt = json.loads(token.decode('utf-8'))
-		if jwt['nif'] in users:
-			user = users.get(jwt['nif'])
-			user.token = crypto.generate_token(jwt)
+		user = get_db().user_by_nif(jwt['nif'])
+		# User exists in DB - login
+		if user:
+			tkn = crypto.generate_token(jwt)
+			get_db().update_token(user.nif,tkn)
+			user.token = tkn
 			return json.dumps(user.__dict__),200
+		# User is missing - register
 		else:
 			user = User(jwt['nif'],0,crypto.generate_token(jwt))
+			get_db().insert_user(user)
 			return json.dumps(user.__dict__),500
 	except:
 		return 'Could not generate token',500
  
 @app.route('/testtoken', methods=['GET'])
 def ttoken():
-	token = crypto.generate_token({'nif':'123456'})
+	token = crypto.generate_token({'nif':'22'})
 	return jsonify({'token': token}),200
 
 @app.route("/user", methods=['GET'])
@@ -84,66 +97,67 @@ def ttoken():
 def getUser():
 	payload = crypto.get_payload(request.headers['Authorization'])
 	payload = json.loads(payload)
-	if payload['nif'] and payload['nif'] in users:
-		user = users.get(payload['nif'])
-		user.token = request.headers['Authorization']
+	nif = payload.get('nif',None)
+	user = get_db().user_by_nif(nif)
+	if user:
+		get_db().update_token(user.nif,request.headers['Authorization'])
 		return json.dumps(user.__dict__),200
 	return "No user found",500
 
 @app.route("/leaderboards", methods=['GET'])
 def leaderboards():
-    all = database.leaderboards()
-    return jsonify(all),200
+	all = get_db().leaderboards()
+	return jsonify(all),200
 
 @socketio.on('connect')
 def connect():
-    print("Client connected")
+	print("Client connected")
 
 @socketio.on('join-room')
 def joinRoom(message):
-    tj = rooms.get(message)
-    if tj == None:
-        emit('join-room',{'id':message, 'status':'missing'})
-    elif len(tj.players) >= 4:
-        return
-    else:
-        # Join socket IO room to facilitate broadcasting messages
-        join_room(message)
-        # Join our server room
-        join = rooms[message].join(request.sid)
-        if join[0] == 'success':
-            # status = status, names = player names , players = number fo players
-            emit('join-room',{'id':message, 'status': join[0], 'players': join[1]})
-            # broadcast player join
-            emit('join-room',{'id':message, 'status': 'opponent', 'opid':request.sid},room=message,include_self=False)
-        else:
-            emit('join-room',{'id':message, 'status': join[0]})
+	tj = rooms.get(message)
+	if tj == None:
+		emit('join-room',{'id':message, 'status':'missing'})
+	elif len(tj.players) >= 4:
+		return
+	else:
+		# Join socket IO room to facilitate broadcasting messages
+		join_room(message)
+		# Join our server room
+		join = rooms[message].join(request.sid)
+		if join[0] == 'success':
+			# status = status, names = player names , players = number fo players
+			emit('join-room',{'id':message, 'status': join[0], 'players': join[1]})
+			# broadcast player join
+			emit('join-room',{'id':message, 'status': 'opponent', 'opid':request.sid},room=message,include_self=False)
+		else:
+			emit('join-room',{'id':message, 'status': join[0]})
 
 @socketio.on('leave-room')
 def leaveRoom(message):
-    try:
-        # TODO rework
-        for pl in rooms[message].players:
-            if pl == request.sid:
-                rooms[message].players.remove(pl)
-    except:
-        pass
-    leave_room(message)
+	try:
+		# TODO rework
+		for pl in rooms[message].players:
+			if pl == request.sid:
+				rooms[message].players.remove(pl)
+	except:
+		pass
+	leave_room(message)
 
 @socketio.on('hearts-message')
 def msg(message):
-    print(request.sid," ",message)
-    room = message['room']
-    game = rooms[room]
-    (tosend,broadcast) = game.on_frame(request.sid,message['data'])
-    print("Server: ",tosend,"Broadcast: ",broadcast)
-    if broadcast == 'broadcast':
-        emit('hearts-message',tosend,room=room)
-    elif broadcast == 'reply':
-        emit('hearts-message',tosend)
-    else:
-        emit('hearts-message',tosend,room=broadcast) 
+	print(request.sid," ",message)
+	room = message['room']
+	game = rooms[room]
+	(tosend,broadcast) = game.on_frame(request.sid,message['data'])
+	print("Server: ",tosend,"Broadcast: ",broadcast)
+	if broadcast == 'broadcast':
+		emit('hearts-message',tosend,room=room)
+	elif broadcast == 'reply':
+		emit('hearts-message',tosend)
+	else:
+		emit('hearts-message',tosend,room=broadcast) 
 
 
 if __name__ == '__main__':
-    socketio.run(app)
+	socketio.run(app)
