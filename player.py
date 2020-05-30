@@ -19,7 +19,7 @@ STATE_CLOSE = 4
 
 class Game_Player():
 	def __init__(self,sid,names):
-		self.player = Player(names[0], auto=True)
+		self.player = Player(names[0])
 		self.opponent_names = names[1:]
 		self.sid = sid		# session id from socketio
 		self.round_number = 0
