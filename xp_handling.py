@@ -7,13 +7,13 @@ def next_level(level):
 	baseXP = 1000
 	return math.floor(baseXP * (level ** exponent))
 
-def add_points(user_id, points):
+def add_points(db, user_id, points):
 	pass
 	'''
 		Call db to add points
 	'''
-	
-	#db[ user_id ][ xp_points ] += points
+
+	#db.update_xp(points, user_id)
 
 def get_level(points):
 	levels = 1
