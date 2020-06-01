@@ -33,7 +33,7 @@ class Sqlite:
 
 	def update_xp(self,xp, NIF):
 		with self.conn:
-			c.execute("""UPDATE User SET XP = :xp WHERE NIF = :nif """,{'xp':User.xp,'nif':User.nif} )
+			self.c.execute("""UPDATE User SET XP = :xp WHERE NIF = :nif """,{'xp':User.xp,'nif':User.nif} )
 
 	def check_game(self,id):
 		with self.conn:
