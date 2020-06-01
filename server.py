@@ -16,7 +16,7 @@ import sqlite3
 
 app = Flask(__name__)
 app.config['JWT_SECRET_KEY'] = 'super-secret'
-cors = CORS(app,resources={r"/auth": {"origins": "*"},r"/token":{"origins": "*"},r"/user":{"origins": "*"}})
+cors = CORS(app,resources={r"/auth": {"origins": "*"},r"/leaderboards": {"origins": "*"},r"/token":{"origins": "*"},r"/user":{"origins": "*"}})
 socketio = SocketIO(app,cors_allowed_origins="*")
 
 crypto = Crypto()

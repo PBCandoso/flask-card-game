@@ -17,7 +17,7 @@ class Sqlite:
 		with self.conn:
 			cur = self.conn.cursor().execute("SELECT * FROM User WHERE NIF={wnif}".format(wnif=nif))
 			res = cur.fetchone()
-			return User(res['nif'],res['rank'],res['xp'],res['token']) if res else None
+			return User(res['nif'],res['rank'],res['token']) if res else None
 			
 	def insert_user(self,user):
 		with self.conn:
