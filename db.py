@@ -17,11 +17,11 @@ class Sqlite:
 		with self.conn:
 			cur = self.conn.cursor().execute("SELECT * FROM User WHERE NIF={wnif}".format(wnif=nif))
 			res = cur.fetchone()
-			return User(res['nif'],res['rank'],res['xp'],res['token'])
+			return User(res['nif'],res['rank'],res['xp'],res['token']) if res else None
 			
 	def insert_user(self,user):
 		with self.conn:
-			self.c.execute("INSERT INTO User VALUES (:nif, :rank, :xp, :token)",{'nif' : user.nif,'rank':user.rank,'xp':user.xp,'token':user.token})
+			self.c.execute("INSERT INTO User VALUES (:nif, :rank, :token)",{'nif' : user.nif,'rank':user.rank,'token':user.token})
 
 	def update_token(self,nif,token):
 		with self.conn:

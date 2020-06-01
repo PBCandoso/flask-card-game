@@ -81,9 +81,9 @@ def decode_token():
 			return json.dumps(user.__dict__),200
 		# User is missing - register
 		else:
-			user = User(jwt['nif'],1,0,crypto.generate_token(jwt))
+			user = User(jwt['nif'],0,crypto.generate_token(jwt))
 			get_db().insert_user(user)
-			return json.dumps(user.__dict__),500
+			return json.dumps(user.__dict__),200
 	except:
 		return 'Could not generate token',500
  
