@@ -32,7 +32,7 @@ class Sqlite:
 		return self.c.fetchall()
 
 	def update_xp(self,xp, NIF):
-		with conn:
+		with self.conn:
 			c.execute("""UPDATE User SET XP = :xp WHERE NIF = :nif """,{'xp':User.xp,'nif':User.nif} )
 
 	def check_game(self,id):
