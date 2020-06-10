@@ -144,32 +144,16 @@ class Hearts_Table():
 					self.players_card_distribution()
 					self.players_decrypt()
 
-					self.state = STATE_PASS
-					# Dont pass every fourth hand
-					print(self.round_num)
-					if (self.round_num % 4) != 0:
-						message = {'type':'PASS_CARD_REQUEST'}
-						return message, sid
 
-					print('NOT PASSING CARDS')
+					print(self.round_num)
 					self.players_make_commitments()
 					self.save_bit_commitments()
 					self.distribute_bit_commitments()
 					self.players_process_commitments_signatures()
-					self.state = STATE_GAME
-					
-					return {'type':'ACK'},'broadcast'
-
-				elif self.state == STATE_PASS:
-					print("PASS")
-					# sent before: DISTRIBUTE_PASSED_CARDS
-					self.players_make_commitments()
-					self.save_bit_commitments()
-					self.distribute_bit_commitments()
-					self.players_process_commitments_signatures()		
 					self.state = STATE_CARDS
 					
 					return {'type':'ACK'},'broadcast'
+				
 				
 				elif self.state == STATE_CARDS:
 					print("CARDS")
@@ -260,44 +244,6 @@ class Hearts_Table():
 			else:
 				return {'data':'WAITING FOR PLAYERS'},'reply'
 
-
-		elif mtype == 'PASS_CARD_RESPONSE':
-			logger.debug('PASS_CARD_RESPONSE')
-			pass_cards = message['parameters']['cards']
-			card1, card2, card3 = pass_card[:]
-			pass_cards = []
-			pass_cards.extend(self.map_to_card(card1), self.map_to_card(card2), self.map_to_card(card3))
-
-			sender_sid = sid
-			sender_index = self.players.index(sender_sid)
-			self.to_be_passed.pop(sender_index)
-
-			for i in range(CARDS_TO_PASS):
-				flag, pass_to = self.pass_card(index=sender_index, pass_card=pass_cards[i])
-				if not flag:
-					break
-
-			if not flag:
-				# card not accepted; repeats request
-				message = {'type':'PASS_CARD_REQUEST_ERROR'}
-				return message,'reply'
-
-			else:
-				# card accepted; advances
-				logger.debug('Passing cards: {}'.format(self.passing_cards))
-
-				# NEXT: DISTRIBUTE_PASSED_CARDS
-				if list(set([len(n) for n in self.passing_cards]))[0] == CARDS_TO_PASS:
-					self.distribute_passed_cards()
-
-				# NEXT: CARD TO PASS - NEW PLAYER
-				else:
-					next_id = random.choices(self.to_be_passed)
-					next_sid = self.players(next_id)
-					message = {'type':'PASS_CARD_REQUEST'}
-					return message, next_sid
-
-			return
 
 		elif mtype == 'SIGNATURE_FAILED':
 			logger.debug('SIGNATURE_FAILED')
@@ -566,15 +512,3 @@ class Hearts_Table():
 			return True
 
 		return False
-
-	def pass_card(self, index, pass_card):
-		logger.info('passcard')
-		pass_to = self.passes[(self.round_num % 4) -1] # how far to pass cards
-		pass_to = (index + pass_to) % len(self.players) # the index to which cards are passed
-		
-		if pass_card is not None:
-			# add card to passed cards
-			self.passing_cards[pass_to].append(pass_card)
-			return True, pass_to
-
-		return False, None
