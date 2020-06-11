@@ -173,20 +173,21 @@ class Hearts_Table():
 						return message, sid
 
 
-					#send before: CARD_
+					#sent before: CARD_PLAYED
 					# NEXT: COMPLETE THE TRICK
-					elif self.current_trick.cardsInTrick < 4:
+					elif 0 < self.current_trick.cardsInTrick < 4:
 						self.shift += 1
 						next_sid = self.get_current_player_sid()
 						message = {'type':'PLAY_CARD_REQUEST'}
 
 						return message,next_sid
 
+					#sent before: CARD_PLAYED
 					# NEXT: TRICK_UPDATE
 					elif self.current_trick.cardsInTrick == 4:
 						self.evaluate_trick()
 
-						if self.trick_winner not in self.scores:
+						if self.trick_winner not in self.scores.keys():
 							self.scores[self.trick_winner] = 0
 
 						self.scores[self.trick_winner] += self.current_trick.points
@@ -194,13 +195,13 @@ class Hearts_Table():
 						message = {'type': 'TRICK_UPDATE', 'parameters':{'trick_number': self.trick_num, 'trick_winner': self.trick_winner}}
 						return message, 'broadcast'
 
+					#sent before: TRICK_UPDATE
 					# NEXT: NEW TRICK
 					elif self.trick_num < TOTAL_TRICKS:
 						print("NEW TRICK")
-						self.shift = 0
 						logger.info('Playing trick number: {}'.format(self.trick_num))
 						message = {'type': 'PLAY_CARD_REQUEST'}
-						sid = self.sid_maped_with_players.get(self.trick_winner)
+						sid = list(self.sid_maped_with_players)[self.trick_winner]
 						return message,sid
 
 					# NEXT: REVEAL COMMITMENTS
