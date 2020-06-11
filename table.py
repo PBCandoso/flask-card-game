@@ -165,7 +165,7 @@ class Hearts_Table():
 						sid = self.get_starter()
 						self.current_trick = Trick()
 						self.trick_num += 1
-						logger.info('Playing trick number: {}'.format(self.trick_num))
+						print('Playing trick number: {}'.format(self.trick_num))
 
 						self.trick_winner = [e for e,v in enumerate(self.players) if v == sid][0]
 
@@ -199,7 +199,7 @@ class Hearts_Table():
 					# NEXT: NEW TRICK
 					elif self.trick_num < TOTAL_TRICKS:
 						print("NEW TRICK")
-						logger.info('Playing trick number: {}'.format(self.trick_num))
+						print('Playing trick number: {}'.format(self.trick_num))
 						message = {'type': 'PLAY_CARD_REQUEST'}
 						sid = list(self.sid_maped_with_players)[self.trick_winner]
 						return message,sid
@@ -256,7 +256,7 @@ class Hearts_Table():
 
 
 		elif mtype == 'SIGNATURE_FAILED':
-			logger.debug('SIGNATURE_FAILED')
+			print('SIGNATURE_FAILED')
 
 			return
 
@@ -281,7 +281,7 @@ class Hearts_Table():
 			else:
 				# card accepted; advances
 				self.current_trick.addCard(play_card, self.get_current_player_index())
-				logger.debug('Current table: {}'.format(self.current_trick))
+				print('Current table: {}'.format(self.current_trick))
 				
 				# NEXT: CARD_PLAYED
 				if self.current_trick.cardsInTrick <= 4:
@@ -325,7 +325,7 @@ class Hearts_Table():
 			return message,'reply'
 
 		else:
-			logger.warning("Invalid message type: {}".format(message['type']))
+			print("Invalid message type: {}".format(message['type']))
 
 	def players_shuffle(self):
 		# every player shuffles (and encrypts) the deck
@@ -352,7 +352,7 @@ class Hearts_Table():
 	def save_bit_commitments(self):
 		for sid in self.sid_maped_with_players.keys():
 			self.save_bit_commitment(sid, self.sid_maped_with_players[sid].player.crypto.bit_commitment)
-			logger.info("{} bit commitment: {}".format(sid, self.sid_maped_with_players[sid].player.crypto.bit_commitment))
+			print("{} bit commitment: {}".format(sid, self.sid_maped_with_players[sid].player.crypto.bit_commitment))
 
 	def distribute_bit_commitments(self):
 		for i, sid1 in enumerate(self.sid_maped_with_players.keys()):
@@ -367,7 +367,7 @@ class Hearts_Table():
 	def save_commitment_reveals(self):
 		for sid in self.sid_maped_with_players.keys():
 			self.save_commitment_reveal(sid, self.sid_maped_with_players[sid].player.crypto.commitment_reveal)
-			logger.info("{} bit commitment: {}".format(sid, self.sid_maped_with_players[sid].player.crypto.commitment_reveal))
+			print("{} bit commitment: {}".format(sid, self.sid_maped_with_players[sid].player.crypto.commitment_reveal))
 
 	def distribute_commitments_reveal(self):
 		for i, sid1 in enumerate(self.sid_maped_with_players.keys()):
@@ -410,11 +410,11 @@ class Hearts_Table():
 
 		self.check_got_all(got_em_all)
 
-		logger.info('Scores: ')
+		print('Scores: ')
 		for sid, score in self.scores:
 			self.total_scores[sid] += score
 
-			logger.info('{}: {}'.format(sid, str(self.total_scores[sid])))
+			print('{}: {}'.format(sid, str(self.total_scores[sid])))
 			score = 0
 			if self.total_scores[sid] > highest_score:
 				p = sid
@@ -432,8 +432,8 @@ class Hearts_Table():
 		self.to_be_passed = [n for n in range(4)]
 		self.passing_cards = [[], [], [], []]
 		self.shift = 0
-		logger.info('New Round')
-		logger.info('Round: {}'.format(self.round_num))
+		print('New Round')
+		print('Round: {}'.format(self.round_num))
 
 	def get_current_player_index(self):
 		winner = [e for e,w in enumerate(self.players) if e == self.trick_winner][0]
@@ -452,12 +452,13 @@ class Hearts_Table():
 		self.trick_winner = self.current_trick.winner
 		sid = self.players[self.trick_winner]
 		self.print_current_trick()
-		logger.info(sid + 'won the trick.')
+		print(sid + 'won the trick.')
 		# print('Making new trick')
 		self.current_trick = Trick()
+		self.trick_num += 1
 		self.shift = 0
 		if self.trick_num < TOTAL_TRICKS-1:
-			logger.info(self.current_trick.suit)
+			print(self.current_trick.suit)
 
 	def distribute_passed_cards(self):
 		for i,passed in enumerate(self.passing_cards):
@@ -468,26 +469,26 @@ class Hearts_Table():
 
 	def save_bit_commitment(self, sid, bit_commitment):
 		self.crypto.players_bit_commitments[sid] = bit_commitment
-		logger.info("{} bit commitment: {}".format(sid, self.crypto.players_bit_commitments[sid]))
+		print("{} bit commitment: {}".format(sid, self.crypto.players_bit_commitments[sid]))
 	
 	def verify_bit_commitment_signature(self, sid):
 		if self.crypto.verify_bit_commitment_signature(self.crypto.players_bit_commitments[sid]):
-			logger.info("Signature match! -> {0}".format(sid))
+			print("Signature match! -> {0}".format(sid))
 			return True
 		
-		logger.warning("Signature mismatch!!! -> {0}".format(sid))
+		print("Signature mismatch!!! -> {0}".format(sid))
 		return False
 
 	def save_commitment_reveal(self, sid, commitment_reveal):
 		self.crypto.players_commitments_reveal[sid] = commitment_reveal
-		logger.info("{} bit commitment: {}".format(sid, self.crypto.players_commitments_reveal[sid]))
+		print("{} bit commitment: {}".format(sid, self.crypto.players_commitments_reveal[sid]))
 		
 	def verify_commitment(self, sid):
 		if self.crypto.verify_commitment_reveal(self.crypto.players_bit_commitments[sid], self.crypto.players_commitments_reveal[sid]):
-			logger.info("Commitment match! -> {0}".format(sid))
+			print("Commitment match! -> {0}".format(sid))
 			return True
 
-		logger.warning("Commitment mismatch!!! -> {0}".format(sid))
+		print("Commitment mismatch!!! -> {0}".format(sid))
 		return False
 	
 	def print_current_trick(self):
@@ -499,7 +500,7 @@ class Hearts_Table():
 				trick_str += self.players[i] + ": " + str(card) + "\n"
 			else:
 				trickStr += self.players[i] + ": None\n"
-		logger.info(trick_str)
+		print(trick_str)
 
 	def eval_card_played(self, card_played):
 		# the rules for what cards can be played
