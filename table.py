@@ -17,16 +17,13 @@ logger.setLevel(level)
 STATE_CONNECT = 0
 STATE_READY = 1
 STATE_NEW_ROUND = 2
-STATE_SHUFFLE = 3
-STATE_DECRYPTION = 4
-STATE_COMMITMENT = 5
-STATE_PASS = 6
-STATE_GAME = 7
-STATE_VERIFY = 8 
-STATE_RESULTS = 9
-STATE_END = 10
-STATE_CLOSE = 11
-STATE_CARDS = 12
+STATE_CARDS = 3
+STATE_GAME = 4
+STATE_VERIFY = 5 
+STATE_RESULTS = 6
+STATE_END = 7
+STATE_CLOSE = 8
+
 ALL_ACK = 4
 
 '''
@@ -176,7 +173,7 @@ class Hearts_Table():
 						return message, sid
 
 
-					#send before: TRICK_UPDATE
+					#send before: CARD_
 					# NEXT: COMPLETE THE TRICK
 					elif self.current_trick.cardsInTrick < 4:
 						self.shift += 1
@@ -184,6 +181,18 @@ class Hearts_Table():
 						message = {'type':'PLAY_CARD_REQUEST'}
 
 						return message,next_sid
+
+					# NEXT: TRICK_UPDATE
+					elif self.current_trick.cardsInTrick == 4:
+						self.evaluate_trick()
+
+						if self.trick_winner not in self.scores:
+							self.scores[self.trick_winner] = 0
+
+						self.scores[self.trick_winner] += self.current_trick.points
+						
+						message = {'type': 'TRICK_UPDATE', 'parameters':{'trick_number': self.trick_num, 'trick_winner': self.trick_winner}}
+						return message, 'broadcast'
 
 					# NEXT: NEW TRICK
 					elif self.trick_num < TOTAL_TRICKS:
@@ -273,18 +282,9 @@ class Hearts_Table():
 				self.current_trick.addCard(play_card, self.get_current_player_index())
 				logger.debug('Current table: {}'.format(self.current_trick))
 				
-				# NEXT: TRICK UPDATE
-				if self.current_trick.cardsInTrick < 4:
-					trick_winner = None
+				# NEXT: CARD_PLAYED
+				if self.current_trick.cardsInTrick <= 4:
 					message = {'type': 'CARD_PLAYED', 'parameters':{'player':sid, 'card':{'rank': play_card.rank.__str__(), 'suit': play_card.suit.__str__()}}}
-				else:
-					self.evaluate_trick()
-					if self.trick_winner in self.scores:
-						self.scores[self.trick_winner] += self.current_trick.points
-					else:
-						self.scores[self.trick_winner] = self.current_trick.points
-					
-					message = {'type': 'TRICK_UPDATE', 'parameters':{'trick_number': self.trick_num, 'trick_winner': self.trick_winner}}
 					
 				return message,'broadcast'
 
